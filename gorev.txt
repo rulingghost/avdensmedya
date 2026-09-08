@@ -1,0 +1,867 @@
+Küçük, modern ve kullanımı kolay bir **Müşteri İş Takip Sistemi** geliştir.
+
+Sistem bir ajans / freelancer çalışma mantığında kullanılacak. Her müşteri için yapılacak işler oluşturulacak, gerekli hesap bilgileri saklanacak, iş adımları madde madde girilecek ve tamamlandıkça checkbox ile işaretlenecek.
+
+Sistemi üç farklı kullanıcı tipi kullanacak:
+
+1. Yönetici / Admin
+2. Aracı / İş Ortağı
+3. Müşteri
+
+Amaç; herkesin aynı proje üzerinden yapılan işleri, tamamlanan adımları ve mevcut durumu görebilmesi.
+
+---
+
+# 1. GİRİŞ SİSTEMİ
+
+Sistemde kullanıcı giriş ekranı olsun.
+
+Giriş alanları:
+
+* E-posta
+* Şifre
+* Giriş Yap
+
+Kullanıcı rolüne göre yetkiler değişsin.
+
+Roller:
+
+### Admin
+
+Tüm müşterileri, işleri, hesap bilgilerini ve kullanıcıları yönetebilir.
+
+### Aracı
+
+Sadece kendisine bağlı müşterileri ve işleri görebilir.
+
+### Müşteri
+
+Sadece kendi firmasına ait işleri ve ilerleme durumunu görebilir.
+
+---
+
+# 2. DASHBOARD
+
+Giriş yapıldığında sade ve profesyonel bir dashboard açılsın.
+
+Dashboard üzerinde kartlar olsun:
+
+* Toplam Müşteri
+* Aktif İşler
+* Tamamlanan İşler
+* Bekleyen İşler
+* Bu Ay Tamamlanan İşler
+* Geciken İşler
+
+Alt bölümde:
+
+## Son Aktiviteler
+
+Örnek:
+
+* ÖMTEK Lazer için Meta Business kurulumu tamamlandı.
+* ABC Mobilya için yeni görev eklendi.
+* XYZ firmasının reklam kampanyası tamamlandı.
+* Müşteri yeni yorum ekledi.
+
+---
+
+# 3. MÜŞTERİLER
+
+Sol menüde:
+
+**Müşteriler**
+
+bölümü olsun.
+
+Müşteri listesinde:
+
+* Firma Adı
+* Yetkili Kişi
+* Telefon
+* E-posta
+* Aracı
+* Aktif İş Sayısı
+* Tamamlanma Oranı
+* Durum
+
+gösterilsin.
+
+Durum seçenekleri:
+
+* Aktif
+* Beklemede
+* Tamamlandı
+* Pasif
+
+Her müşterinin yanında:
+
+**Detay**
+
+butonu olsun.
+
+---
+
+# 4. YENİ MÜŞTERİ EKLE
+
+Admin yeni müşteri oluşturabilsin.
+
+Alanlar:
+
+### Firma Bilgileri
+
+* Firma Adı
+* Yetkili Kişi
+* Telefon
+* WhatsApp
+* E-posta
+* Web Sitesi
+* Instagram
+* Facebook
+* Açıklama / Not
+
+### Aracı Bilgisi
+
+Müşterinin hangi aracıya bağlı olduğu seçilebilsin.
+
+---
+
+# 5. MÜŞTERİ DETAY SAYFASI
+
+Her müşteri için özel bir proje ekranı oluştur.
+
+Üst bölümde:
+
+Firma adı
+
+altında:
+
+* Yetkili
+* Telefon
+* Aracı
+* Proje durumu
+* Başlangıç tarihi
+
+gösterilsin.
+
+Ayrıca büyük bir:
+
+**Genel İlerleme**
+
+progress bar olsun.
+
+Örneğin:
+
+%72 Tamamlandı
+
+---
+
+# 6. MÜŞTERİ İÇERİSİNDE SEKME YAPISI
+
+Müşteri detay sayfasında şu sekmeler olsun:
+
+1. Genel Bakış
+2. Yapılacak İşler
+3. Hesap Bilgileri
+4. Dosyalar
+5. Notlar
+6. Aktivite Geçmişi
+
+---
+
+# 7. YAPILACAK İŞLER
+
+Sistemin en önemli bölümü burası olacak.
+
+Müşteri için ana iş başlıkları oluşturulabilsin.
+
+Örnek:
+
+### Meta Kurulum ve Hesap Optimizasyonu
+
+Alt görevler:
+
+☐ Instagram ve Facebook bağlantısını kur
+
+☐ Meta Business hesabını oluştur
+
+☐ Reklam hesabını oluştur
+
+☐ Instagram profesyonel hesap ayarlarını yap
+
+☐ Meta görevlerini tamamla
+
+Her görev tamamlandığında checkbox işaretlenebilsin.
+
+Checkbox işaretlendiğinde:
+
+* Görev tamamlandı olarak görünmeli
+* Tamamlayan kişi kaydedilmeli
+* Tamamlanma tarihi kaydedilmeli
+* Genel ilerleme oranı otomatik güncellenmeli
+
+---
+
+# 8. GÖREV KATEGORİLERİ
+
+Görevleri kategori halinde gösterebil.
+
+Örnek kategoriler:
+
+## Meta Kurulum
+
+## İçerik Yönetimi
+
+## Reklam Yönetimi
+
+## Organik Büyüme
+
+## Teknik İşlemler
+
+## Tasarım
+
+## Raporlama
+
+Kategori oluşturma ve silme admin tarafından yapılabilsin.
+
+---
+
+# 9. GÖREV EKLEME
+
+Admin istediği kadar yeni görev ekleyebilsin.
+
+Görev alanları:
+
+* Görev adı
+* Açıklama
+* Kategori
+* Sorumlu kişi
+* Başlangıç tarihi
+* Son tarih
+* Öncelik
+* Durum
+
+Öncelik seçenekleri:
+
+* Düşük
+* Normal
+* Yüksek
+* Acil
+
+Durum seçenekleri:
+
+* Yapılacak
+* Devam Ediyor
+* Beklemede
+* Tamamlandı
+
+---
+
+# 10. GÖREV DETAYI
+
+Bir göreve tıklandığında detay penceresi açılsın.
+
+Görev detayında:
+
+* Görev adı
+* Açıklama
+* Sorumlu kişi
+* Oluşturan kişi
+* Oluşturulma tarihi
+* Son tarih
+* Öncelik
+* Durum
+* Notlar
+* Dosyalar
+* Aktivite geçmişi
+
+bulunsun.
+
+---
+
+# 11. HESAP BİLGİLERİ
+
+Her müşterinin:
+
+**Hesap Bilgileri**
+
+sekmesi olsun.
+
+Buraya hizmetlere ait hesap bilgileri eklenebilsin.
+
+Örnek:
+
+### Instagram
+
+* Kullanıcı adı
+* E-posta
+* Telefon
+* Şifre
+* Not
+
+### Facebook
+
+* E-posta
+* Şifre
+* Sayfa URL
+
+### Meta Business
+
+* Business ID
+* Reklam Hesabı ID
+* Pixel ID
+* E-posta
+* Notlar
+
+### Web Sitesi
+
+* Admin URL
+* Kullanıcı adı
+* Şifre
+
+### Hosting
+
+* Hosting firması
+* Kullanıcı adı
+* Şifre
+
+Yeni hesap türleri manuel olarak eklenebilsin.
+
+Örneğin:
+
+Google Ads
+TikTok
+YouTube
+WordPress
+Hosting
+Domain
+Canva
+
+---
+
+# 12. HESAP BİLGİLERİ GÜVENLİĞİ
+
+Şifreler varsayılan olarak gizli gösterilsin.
+
+Örneğin:
+
+••••••••
+
+Yanında:
+
+👁 Göster
+
+butonu olsun.
+
+Hesap bilgilerini sadece yetkili kullanıcılar görebilsin.
+
+Müşterinin şifreleri görüp görmemesi admin tarafından belirlenebilsin.
+
+---
+
+# 13. NOTLAR
+
+Her müşteri için not bölümü olsun.
+
+Admin veya aracı not ekleyebilsin.
+
+Örnek:
+
+"Müşteri içeriklerde kırmızı ağırlıklı tasarım istemiyor."
+
+"Müşteri Meta reklamlarında öncelikle WhatsApp dönüşü istiyor."
+
+Notlarda:
+
+* Notu yazan kişi
+* Tarih
+* Saat
+
+görünsün.
+
+---
+
+# 14. DOSYALAR
+
+Müşteri için dosya yükleme alanı olsun.
+
+Dosya türleri:
+
+* JPG
+* PNG
+* PDF
+* DOCX
+* XLSX
+* ZIP
+
+Dosyalara açıklama eklenebilsin.
+
+Örnek:
+
+Logo
+
+Kurumsal Kimlik
+
+Ürün Fotoğrafları
+
+Reklam Görselleri
+
+Sözleşme
+
+---
+
+# 15. MÜŞTERİ YORUMLARI
+
+Müşteri kendi proje ekranında yapılan işlere yorum bırakabilsin.
+
+Örnek:
+
+"Bu tasarım biraz daha koyu olabilir."
+
+"Reklam WhatsApp'a yönlensin."
+
+Admin bu yoruma cevap verebilsin.
+
+Basit bir yorum sistemi oluştur.
+
+---
+
+# 16. AKTİVİTE GEÇMİŞİ
+
+Sistemde yapılan tüm önemli işlemler kaydedilsin.
+
+Örnek:
+
+Serdar yeni görev oluşturdu.
+
+Mücahit görevi tamamladı.
+
+Müşteri yorum ekledi.
+
+Reklam kampanyası görevi tamamlandı.
+
+Yeni hesap bilgisi eklendi.
+
+Aktivite geçmişi tarih ve saat ile görüntülensin.
+
+---
+
+# 17. İLERLEME YÜZDESİ
+
+Her müşteri için otomatik ilerleme yüzdesi hesapla.
+
+Örneğin:
+
+20 görev varsa
+
+15 görev tamamlandıysa
+
+%75 tamamlandı göster.
+
+Bunu progress bar olarak göster.
+
+Renk mantığı:
+
+0–30 düşük ilerleme
+
+30–70 devam ediyor
+
+70–99 tamamlanmak üzere
+
+100 tamamlandı
+
+---
+
+# 18. ARACI PANELİ
+
+Aracı kullanıcı sadece kendisine bağlı müşterileri görebilsin.
+
+Aracı şunları görebilsin:
+
+* Müşteri
+* Yapılacak işler
+* Tamamlanan işler
+* İlerleme oranı
+* Notlar
+* Yorumlar
+
+Ancak kritik sistem ayarlarını değiştiremesin.
+
+---
+
+# 19. MÜŞTERİ PANELİ
+
+Müşteri giriş yaptığında çok basit bir ekran görsün.
+
+Görebileceği bilgiler:
+
+## Proje Durumu
+
+%65 Tamamlandı
+
+## Yapılan İşler
+
+✓ Meta Business kurulumu
+
+✓ Instagram bağlantısı
+
+✓ İlk reklam kampanyası
+
+## Devam Eden İşler
+
+• Reklam optimizasyonu
+
+• İçerik tasarımı
+
+## Bekleyen İşler
+
+• Yeni ürün fotoğrafları
+
+Müşteri teknik admin paneli görmemeli.
+
+Sadece sade proje takip ekranı görmeli.
+
+---
+
+# 20. BİLDİRİMLER
+
+Yeni görev oluşturulduğunda bildirim oluştur.
+
+Görev tamamlandığında bildirim oluştur.
+
+Müşteri yorum yaptığında admin bildirimi oluşsun.
+
+Örneğin:
+
+"ÖMTEK Lazer projesinde yeni müşteri yorumu var."
+
+---
+
+# 21. ARAMA VE FİLTRELEME
+
+Sistemde global arama alanı olsun.
+
+Şunlarda arama yapılabilsin:
+
+* Müşteri
+* Firma
+* Görev
+* Telefon
+* Aracı
+
+Görev filtreleri:
+
+* Tamamlanan
+* Bekleyen
+* Devam Eden
+* Geciken
+* Acil
+
+---
+
+# 22. TASARIM
+
+Modern SaaS dashboard tasarımı kullan.
+
+Arayüz:
+
+* Temiz
+* Minimal
+* Kurumsal
+* Responsive
+* Mobil uyumlu
+
+olsun.
+
+Sol tarafta sidebar kullan.
+
+Sidebar menüsü:
+
+Dashboard
+
+Müşteriler
+
+Görevler
+
+Aktiviteler
+
+Kullanıcılar
+
+Ayarlar
+
+---
+
+# 23. MÜŞTERİ KARTLARI
+
+Müşterileri kart halinde de gösterebil.
+
+Örnek:
+
+ÖMTEK LAZER
+
+12 / 18 İş Tamamlandı
+
+%67
+
+Aracı: Mücahit
+
+Durum: Aktif
+
+[Projeyi Aç]
+
+---
+
+# 24. GÖREV ŞABLONLARI
+
+Sistemde görev şablonu özelliği olsun.
+
+Admin daha önce hazırladığı görev listesini yeni müşteriye tek tıkla uygulayabilsin.
+
+Örnek şablon:
+
+### Sosyal Medya Yönetimi
+
+* Instagram Analizi
+* Meta Business Kurulumu
+* Facebook Bağlantısı
+* Reklam Hesabı Kurulumu
+* Profil Optimizasyonu
+* İçerik Konsepti
+* Gönderi Tasarımı
+* Reels Planlaması
+* Story Planlaması
+* Reklam Kampanyası
+* WhatsApp Reklamı
+* Remarketing
+* Organik Büyüme
+* Aylık Raporlama
+
+Böylece her yeni müşteride aynı görevleri tek tek yazmak zorunda kalmayalım.
+
+---
+
+# 25. YÖNETİCİ ÖZET EKRANI
+
+Admin dashboard üzerinde:
+
+### Bugün Yapılacaklar
+
+### Geciken İşler
+
+### Bu Hafta Bitecek İşler
+
+### Tamamlanan İşler
+
+### Müşteri Bekleyen İşler
+
+alanları olsun.
+
+---
+
+# 26. MÜŞTERİDEN BEKLENEN İŞLER
+
+Görevlere özel bir alan ekle:
+
+**Müşteriden Bekleniyor**
+
+Örneğin:
+
+* Logo bekleniyor
+* Instagram şifresi bekleniyor
+* Ürün fotoğrafları bekleniyor
+* Reklam bütçesi onayı bekleniyor
+
+Bu görevler ayrı bir renk veya ikonla gösterilsin.
+
+Böylece işin neden beklediği açık şekilde görülebilsin.
+
+---
+
+# 27. SORUMLU KİŞİ
+
+Her göreve sorumlu atanabilsin.
+
+Örnek:
+
+Serdar
+
+Mücahit
+
+Tasarımcı
+
+Reklam Uzmanı
+
+Görev listesinde sorumlu kişinin avatarı veya adı görünsün.
+
+---
+
+# 28. HIZLI İŞLEM BUTONLARI
+
+Dashboard üzerinde hızlı işlem butonları oluştur:
+
+* Yeni Müşteri
+
+* Yeni Görev
+
+* Yeni Not
+
+* Dosya Yükle
+
+---
+
+# 29. VERİ TABANI YAPISI
+
+Sistemin veri tabanını ileride büyüyebilecek şekilde oluştur.
+
+Temel tablolar:
+
+users
+
+customers
+
+projects
+
+tasks
+
+task_categories
+
+task_templates
+
+account_credentials
+
+notes
+
+files
+
+comments
+
+activities
+
+notifications
+
+Her tabloda gerekli ilişkilendirmeleri oluştur.
+
+---
+
+# 30. ÖNEMLİ KULLANIM SENARYOSU
+
+Örnek bir müşteri oluştur:
+
+Firma:
+
+ÖMTEK Lazer
+
+Aracı:
+
+Mücahit
+
+Proje:
+
+Instagram & Meta Yönetimi
+
+Görev kategorileri:
+
+### Meta Kurulum
+
+* Instagram Meta bağlantısı
+* Facebook Sayfası bağlantısı
+* Meta Business kurulumu
+* Reklam hesabı kurulumu
+* Profil optimizasyonu
+
+### İçerik
+
+* Görsel konsept oluştur
+* Gönderi tasarla
+* Reels planla
+* Story planla
+
+### Reklam
+
+* Hedef kitle oluştur
+* WhatsApp reklamı oluştur
+* Mesaj reklamı oluştur
+* Remarketing kur
+* Reklam optimizasyonu yap
+
+### Organik Büyüme
+
+* Profil optimizasyonu
+* Etkileşim analizi
+* Organik büyüme çalışması
+* Performans raporu
+
+Bu demo verileri sisteme ekle ki uygulama ilk açıldığında sistemin nasıl çalıştığı görülebilsin.
+
+---
+
+# 31. TEKNİK ÖNCELİK
+
+İlk versiyonda sistemi gereksiz özelliklerle büyütme.
+
+Öncelik:
+
+1. Müşteri oluşturma
+2. Proje oluşturma
+3. Yapılacak işleri ekleme
+4. Checkbox ile tamamlanan işleri işaretleme
+5. İlerleme yüzdesi
+6. Hesap bilgileri
+7. Admin / Aracı / Müşteri yetkilendirmesi
+8. Notlar
+9. Aktivite geçmişi
+10. Basit dashboard
+
+Önce sağlam ve çalışan MVP oluştur.
+
+Daha sonra geliştirilebilir bir mimari kullan.
+
+---
+
+# 32. KULLANICI DENEYİMİ
+
+Sistem teknik bilgisi az olan kişiler tarafından da rahat kullanılabilsin.
+
+Mümkün olduğunca:
+
+* Az tıklama
+* Büyük ve anlaşılır butonlar
+* Basit menüler
+* Açık durum etiketleri
+* Mobil uyum
+* Hızlı görev tamamlama
+
+mantığı kullan.
+
+Bir görevin tamamlanması için kullanıcı görevin yanındaki checkbox'a basabilsin.
+
+Sistem otomatik olarak:
+
+* Görevi tamamlandı yapsın
+* Tarihi kaydetsin
+* Tamamlayan kişiyi kaydetsin
+* İlerleme yüzdesini güncellesin
+* Aktivite kaydı oluştursun
+
+---
+
+# SONUÇ
+
+Ortaya basit bir CRM gibi görünen fakat asıl amacı:
+
+**müşteri bazlı iş takibi ve şeffaf proje yönetimi**
+
+olan bir web uygulaması çıkar.
+
+Ana mantık:
+
+Müşteri Oluştur
+→ Proje Aç
+→ Yapılacak İşleri Ekle
+→ Hesap Bilgilerini Gir
+→ Sorumlu Ata
+→ İşleri Yaptıkça Tik At
+→ Müşteri ve Aracı İlerlemeyi Görsün
+→ Tüm Süreç Kayıt Altında Olsun
+
+Önce çalışan MVP'yi oluştur. Tasarımı modern, profesyonel ve sade tut.
