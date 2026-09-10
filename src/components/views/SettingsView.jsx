@@ -12,7 +12,6 @@ import {
   Copy,
   Check,
   Server,
-  Zap,
   ExternalLink
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -29,14 +28,12 @@ export default function SettingsView() {
     dbStatus,
     dbError,
     isSyncing,
-    loadDataFromDb,
-    initDatabaseToCloud
+    loadDataFromDb
   } = useApp();
 
   const fileInputRef = useRef(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
   const [isTesting, setIsTesting] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
 
   const showNotification = (message, type = 'success') => {
@@ -92,26 +89,6 @@ export default function SettingsView() {
       showNotification('Test hatası: ' + e.message, 'error');
     } finally {
       setIsTesting(false);
-    }
-  };
-
-  // Tek Tıkla Veritabanını Başlat (Tabloları ve Demo Verileri Oluştur)
-  const handleInitDatabase = async () => {
-    if (!window.confirm('Neon PostgreSQL veritabanında tablolar oluşturulacak ve başlangıç demo verileri yüklenecektir. Onaylıyor musunuz?')) {
-      return;
-    }
-    setIsInitializing(true);
-    try {
-      const res = await initDatabaseToCloud();
-      if (res.success) {
-        showNotification('Tebrikler! Neon PostgreSQL veritabanı başarıyla oluşturuldu ve hazırlandı.', 'success');
-      } else {
-        showNotification('Hata: ' + (res.error || 'Veritabanı başlatılamadı.'), 'error');
-      }
-    } catch (e) {
-      showNotification('Başlatma hatası: ' + e.message, 'error');
-    } finally {
-      setIsInitializing(false);
     }
   };
 
@@ -284,7 +261,7 @@ export default function SettingsView() {
             </div>
           ) : dbStatus === 'empty_needs_init' ? (
             <div>
-              <strong>⚡ Neon Bağlantısı Hazır:</strong> Vercel üzerinden Neon veritabanınız algılandı ancak PostgreSQL tabloları henüz oluşturulmamış. Aşağıdaki <strong>"Tek Tıkla Veritabanını Başlat"</strong> butonuna basarak tüm tabloları ve demo verilerini tek seferde oluşturabilirsiniz.
+              <strong>⚡ Neon Bağlantısı Hazır:</strong> Vercel Neon veritabanınız bağlı durumdadır.
             </div>
           ) : (
             <div>
@@ -297,16 +274,6 @@ export default function SettingsView() {
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
             className="btn btn-primary"
-            onClick={handleInitDatabase}
-            disabled={isInitializing}
-            title="Tabloları ve demo verileri Neon veritabanına otomatik yükler"
-          >
-            <Zap size={16} />
-            <span>{isInitializing ? 'Başlatılıyor...' : 'Tek Tıkla Veritabanını Başlat'}</span>
-          </button>
-
-          <button
-            className="btn btn-secondary"
             onClick={handleTestNeon}
             disabled={isTesting}
           >
@@ -342,7 +309,7 @@ export default function SettingsView() {
           <div>2. Üst menüden <strong>Storage</strong> sekmesine tıklayın ve <strong>Connect Database</strong> butonuna basın.</div>
           <div>3. <strong>Neon Serverless Postgres</strong> seçeneğini seçip "Create" butonuna tıklayın.</div>
           <div>4. Vercel, <code>DATABASE_URL</code> ve <code>POSTGRES_URL</code> anahtarlarını projenize otomatik olarak bağlar.</div>
-          <div>5. Ardından bu sayfaya gelip <strong>"Tek Tıkla Veritabanını Başlat"</strong> butonuna basın; tüm tablolarınız ve verileriniz hemen kurulacaktır!</div>
+          <div>5. Bağlantı tamamlandığında sisteminiz otomatik olarak canlı veritabanı üzerinden çalışmaya başlar.</div>
         </div>
       </div>
 
