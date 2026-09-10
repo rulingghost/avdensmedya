@@ -1,10 +1,28 @@
 import React, { useState } from 'react';
-import { X, Building2, User, Phone, Mail, Globe, Instagram, Facebook, FileText, UserCheck, Sparkles } from 'lucide-react';
+import {
+  X,
+  Building2,
+  User,
+  Phone,
+  Mail,
+  Globe,
+  Instagram,
+  Facebook,
+  FileText,
+  UserCheck,
+  Sparkles,
+  Lock,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  Key
+} from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export default function NewCustomerModal({ isOpen, onClose }) {
   const { data, addCustomer, setSelectedCustomerId, setActivePage, currentUser } = useApp();
 
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     companyName: '',
     contactPerson: '',
@@ -18,10 +36,22 @@ export default function NewCustomerModal({ isOpen, onClose }) {
     status: 'aktif',
     projectTitle: 'Dijital Pazarlama & Sosyal Medya Yönetimi',
     description: '',
-    applyTemplateId: 'tmpl-sosyal-medya' // Varsayılan olarak şablon seçili
+    applyTemplateId: 'tmpl-sosyal-medya', // Varsayılan olarak şablon seçili
+    createPortalUser: true,
+    clientEmail: '',
+    clientPassword: 'Avdens2026!'
   });
 
   if (!isOpen) return null;
+
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
+    let res = '';
+    for (let i = 0; i < 9; i++) {
+      res += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData(prev => ({ ...prev, clientPassword: res }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -30,7 +60,12 @@ export default function NewCustomerModal({ isOpen, onClose }) {
       return;
     }
 
-    const newCustomerId = addCustomer(formData, formData.applyTemplateId || null);
+    const payload = {
+      ...formData,
+      clientEmail: formData.clientEmail || formData.email
+    };
+
+    const newCustomerId = addCustomer(payload, formData.applyTemplateId || null);
     onClose();
 
     // Kullanıcıyı yeni müşterinin detayına götür
@@ -66,7 +101,7 @@ export default function NewCustomerModal({ isOpen, onClose }) {
             {/* Firma Bilgileri */}
             <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '14px' }}>
               <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
-                1. Firma & İletişim Bilgileri (Madde 4)
+                1. Firma & İletişim Bilgileri
               </div>
 
               <div className="form-group">
@@ -101,7 +136,14 @@ export default function NewCustomerModal({ isOpen, onClose }) {
                     className="form-input"
                     placeholder="info@firma.com"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        email: val,
+                        clientEmail: (!prev.clientEmail || prev.clientEmail === prev.email) ? val : prev.clientEmail
+                      }));
+                    }}
                     required
                   />
                 </div>
@@ -217,9 +259,9 @@ export default function NewCustomerModal({ isOpen, onClose }) {
             </div>
 
             {/* Proje Başlığı & Şablon Entegrasyonu */}
-            <div>
+            <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '14px' }}>
               <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
-                3. Proje Tanımı & Otomatik Görev Şablonu (Madde 24)
+                3. Proje Tanımı & Otomatik Görev Şablonu
               </div>
 
               <div className="form-group">
@@ -268,6 +310,89 @@ export default function NewCustomerModal({ isOpen, onClose }) {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
               </div>
+            </div>
+
+            {/* 4. MÜŞTERİ PORTALI GİRİŞ HESABI & ŞİFRE BELİRLEME */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Key size={15} />
+                  <span>4. Müşteri Portalı Giriş Hesabı & Şifre</span>
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.createPortalUser}
+                    onChange={(e) => setFormData({ ...formData, createPortalUser: e.target.checked })}
+                    style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                  />
+                  <span>Portal Giriş Hesabı Oluştur</span>
+                </label>
+              </div>
+
+              {formData.createPortalUser ? (
+                <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.84rem', fontWeight: 600 }}>Giriş E-postası *</label>
+                      <input
+                        type="email"
+                        className="form-input"
+                        placeholder="musteri@firma.com"
+                        value={formData.clientEmail || formData.email}
+                        onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
+                        required={formData.createPortalUser}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '0.84rem', fontWeight: 600, marginBottom: 0 }}>Giriş Şifresi *</label>
+                        <button
+                          type="button"
+                          onClick={generateRandomPassword}
+                          style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                          title="Yeni rastgele güçlü şifre oluştur"
+                        >
+                          <RefreshCw size={12} />
+                          <span>Rastgele Üret</span>
+                        </button>
+                      </div>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          className="form-input"
+                          style={{ paddingRight: '38px', fontFamily: showPassword ? 'inherit' : 'monospace', fontWeight: 600 }}
+                          placeholder="Şifre belirleyiniz"
+                          value={formData.clientPassword}
+                          onChange={(e) => setFormData({ ...formData, clientPassword: e.target.value })}
+                          required={formData.createPortalUser}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
+                          title={showPassword ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
+                        >
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', background: '#eff6ff', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid #bfdbfe', fontSize: '0.78rem', color: '#1e40af' }}>
+                    <Lock size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <span>
+                      Müşteriniz ana giriş ekranından bu e-posta ve şifre ile oturum açtığında doğrudan kendine özel <strong>Müşteri Portalı</strong>'na erişecektir. Bu şifreyi daha sonra Müşteri Detay sayfasından da görebilir veya güncelleyebilirsiniz.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '6px 0' }}>
+                  Portal giriş hesabı oluşturulmayacak. Müşteri daha sonra Müşteri Detay sayfasından da portala dahil edilebilir.
+                </div>
+              )}
             </div>
 
           </div>

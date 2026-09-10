@@ -26,7 +26,10 @@ import {
   CheckSquare,
   ShieldCheck,
   Check,
-  FileCheck
+  FileCheck,
+  Lock,
+  RefreshCw,
+  Send
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import AddCredentialModal from '../modals/AddCredentialModal';
@@ -47,13 +50,22 @@ export default function CustomerDetailView() {
     deleteNote,
     deleteCredential,
     deleteFile,
-    assignPartnerToCustomer
+    assignPartnerToCustomer,
+    updateCustomerPortalAccess,
+    deleteCustomer
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'tasks' | 'credentials' | 'files' | 'notes' | 'activities' | 'onboarding'
   const [revealedPasswords, setRevealedPasswords] = useState({}); // { [credId_idx]: boolean }
   const [revealedOnboardingPasswords, setRevealedOnboardingPasswords] = useState({});
   const [copiedKey, setCopiedKey] = useState(null);
+
+  // Portal giriş bilgileri state'leri
+  const [isEditingPortalAccess, setIsEditingPortalAccess] = useState(false);
+  const [editPortalEmail, setEditPortalEmail] = useState('');
+  const [editPortalPassword, setEditPortalPassword] = useState('');
+  const [isPortalPasswordRevealed, setIsPortalPasswordRevealed] = useState(false);
+  const [portalFeedback, setPortalFeedback] = useState('');
 
   // Modallar
   const [isCredModalOpen, setIsCredModalOpen] = useState(false);
@@ -105,6 +117,26 @@ export default function CustomerDetailView() {
   const customerOnboardingRequests = (data.onboardingRequests || []).filter(r => r.customerId === customer.id);
   const pendingOnboarding = customerOnboardingRequests.find(r => r.status === 'pending');
 
+  // Müşterinin portal giriş kullanıcısı (Madde: Müşteri Girişi & Şifre)
+  const portalUser = data.users.find(u => u.customerId === customer.id && u.role === 'musteri');
+
+  const handleSavePortalAccess = async (e) => {
+    e.preventDefault();
+    if (!editPortalEmail.trim() || !editPortalPassword.trim()) return;
+    const res = await updateCustomerPortalAccess(customer.id, {
+      email: editPortalEmail,
+      password: editPortalPassword,
+      name: customer.contactPerson
+    });
+    if (res.success) {
+      setIsEditingPortalAccess(false);
+      setPortalFeedback('Portal giriş bilgileri başarıyla güncellendi!');
+      setTimeout(() => setPortalFeedback(''), 4000);
+    } else {
+      alert(res.message || 'Portal bilgileri güncellenemedi.');
+    }
+  };
+
   // Şifre gösterme/gizleme
   const togglePasswordVisibility = (id) => {
     setRevealedPasswords(prev => ({ ...prev, [id]: !prev[id] }));
@@ -137,10 +169,10 @@ export default function CustomerDetailView() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', maxWidth: '100%', minWidth: 0 }}>
 
       {/* Geri Dön Butonu ve Üst Navigasyon */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
         <button
           className="btn btn-secondary btn-sm"
           onClick={() => setActivePage('customers')}
@@ -150,9 +182,28 @@ export default function CustomerDetailView() {
           <span>Müşteri Listesine Dön</span>
         </button>
 
-        <span className={`badge badge-${customer.status}`}>
-          {customer.status === 'aktif' ? '● Aktif Proje' : customer.status === 'beklemede' ? '● Beklemede' : '● ' + customer.status}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className={`badge badge-${customer.status}`}>
+            {customer.status === 'aktif' ? '● Aktif Proje' : customer.status === 'beklemede' ? '● Beklemede' : '● ' + customer.status}
+          </span>
+
+          {currentUser.role === 'admin' && (
+            <button
+              className="btn btn-danger-outline btn-sm"
+              onClick={async () => {
+                if (window.confirm(`"${customer.companyName}" müşterisini ve bağlı tüm görev, dosya ve portal kullanıcı verilerini silmek istediğinize emin misiniz?`)) {
+                  await deleteCustomer(customer.id);
+                  setActivePage('customers');
+                }
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '0.78rem' }}
+              title="Müşteriyi Sil"
+            >
+              <Trash2 size={14} />
+              <span>Müşteriyi Sil</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 5. MÜŞTERİ DETAY SAYFASI ÜST BÖLÜMÜ (Madde 5) */}
@@ -164,16 +215,18 @@ export default function CustomerDetailView() {
           display: 'flex',
           flexDirection: 'column',
           gap: '20px',
-          borderLeft: '6px solid var(--primary)'
+          borderLeft: '6px solid var(--primary)',
+          maxWidth: '100%',
+          overflow: 'hidden'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', minWidth: 0 }}>
+          <div style={{ minWidth: 0, flex: '1 1 300px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
                 {customer.companyName}
               </h2>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
                 ({customer.projectTitle})
               </span>
             </div>
@@ -307,7 +360,249 @@ export default function CustomerDetailView() {
 
       {/* SEKME 1: GENEL BAKIŞ */}
       {activeTab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '20px' }}>
+
+          {/* Portal Güncelleme Bildirimi */}
+          {portalFeedback && (
+            <div style={{
+              gridColumn: '1 / -1',
+              padding: '12px 18px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              color: '#065f46',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <CheckCircle2 size={18} />
+              <span>{portalFeedback}</span>
+            </div>
+          )}
+
+          {/* MÜŞTERİ PORTALI GİRİŞ BİLGİLERİ VE ŞİFRE YÖNETİMİ (Madde: Müşteri Girişi) */}
+          <div
+            className="card"
+            style={{
+              gridColumn: '1 / -1',
+              borderLeft: '5px solid #2563eb',
+              background: 'linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%)',
+              padding: '22px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 'var(--radius-md)',
+                  background: '#dbeafe',
+                  color: '#1d4ed8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 6px rgba(37, 99, 235, 0.15)'
+                }}>
+                  <ShieldCheck size={24} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                      Müşteri Portalı Giriş Bilgileri & Şifre
+                    </h3>
+                    {portalUser ? (
+                      <span style={{ fontSize: '0.72rem', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontWeight: 700 }}>
+                        ● Portal Girişi Açık
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.72rem', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontWeight: 700 }}>
+                        ⏳ Henüz Hesap Oluşturulmadı
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Müşteriniz ana giriş sayfasından bu e-posta ve şifre ile oturum açarak doğrudan kendi portalına erişir.
+                  </p>
+                </div>
+              </div>
+
+              {/* Hızlı Aksiyon Butonları */}
+              {portalUser && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {currentUser.role === 'admin' && !isEditingPortalAccess && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setEditPortalEmail(portalUser.email);
+                        setEditPortalPassword(portalUser.password || '123456');
+                        setIsEditingPortalAccess(true);
+                      }}
+                      style={{ fontSize: '0.8rem' }}
+                    >
+                      <Key size={14} />
+                      <span>Şifreyi Değiştir</span>
+                    </button>
+                  )}
+
+                  {customer.phone && (
+                    <a
+                      href={`https://wa.me/${(customer.whatsapp || customer.phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                        `Sayın ${customer.contactPerson},\n\n${customer.companyName} için hazırlanan Avdens Work Müşteri Portalı giriş bilgileriniz:\n\n🌐 Panel Adresi: ${window.location.origin}\n📧 E-posta: ${portalUser.email}\n🔑 Şifre: ${portalUser.password || '123456'}\n\nBu bilgilerle giriş yaparak projenizdeki tamamlanan işleri, dosyaları ve onay bekleyen talepleri anlık olarak takip edebilirsiniz.`
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.8rem', color: '#16a34a', borderColor: '#bbf7d0', background: '#ffffff' }}
+                      title="Giriş bilgilerini müşteriye WhatsApp ile gönder"
+                    >
+                      <MessageCircle size={14} />
+                      <span>WhatsApp ile İlet</span>
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Portal Kullanıcı Bilgileri / Form */}
+            {portalUser ? (
+              isEditingPortalAccess ? (
+                <form onSubmit={handleSavePortalAccess} style={{ background: '#ffffff', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    Portal Giriş E-postası ve Şifresini Güncelle
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Giriş E-postası</label>
+                      <input
+                        type="email"
+                        className="form-input"
+                        value={editPortalEmail}
+                        onChange={(e) => setEditPortalEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 0 }}>Yeni Şifre</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
+                            let p = '';
+                            for (let i = 0; i < 9; i++) p += chars.charAt(Math.floor(Math.random() * chars.length));
+                            setEditPortalPassword(p);
+                          }}
+                          style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}
+                        >
+                          <RefreshCw size={11} />
+                          <span>Rastgele Üret</span>
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={editPortalPassword}
+                        onChange={(e) => setEditPortalPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIsEditingPortalAccess(false)}>
+                      Vazgeç
+                    </button>
+                    <button type="submit" className="btn btn-primary btn-sm">
+                      Değişiklikleri Kaydet
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
+                  {/* E-posta Kutusu */}
+                  <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                    <div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>
+                        Müşteri Giriş E-postası
+                      </span>
+                      <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)', wordBreak: 'break-all' }}>
+                        {portalUser.email}
+                      </strong>
+                    </div>
+                    <button
+                      onClick={() => handleCopy('p_email', portalUser.email)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+                      title="E-postayı Kopyala"
+                    >
+                      {copiedKey === 'p_email' ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
+                      <span>{copiedKey === 'p_email' ? 'Kopyalandı' : 'Kopyala'}</span>
+                    </button>
+                  </div>
+
+                  {/* Şifre Kutusu */}
+                  <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                    <div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>
+                        Müşteri Giriş Şifresi
+                      </span>
+                      <strong style={{ fontSize: '1rem', fontFamily: isPortalPasswordRevealed ? 'inherit' : 'monospace', color: 'var(--text-main)' }}>
+                        {isPortalPasswordRevealed ? (portalUser.password || '123456') : '••••••••••••'}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        onClick={() => setIsPortalPasswordRevealed(!isPortalPasswordRevealed)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '6px 8px' }}
+                        title={isPortalPasswordRevealed ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
+                      >
+                        {isPortalPasswordRevealed ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                      <button
+                        onClick={() => handleCopy('p_pass', portalUser.password || '123456')}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+                        title="Şifreyi Kopyala"
+                      >
+                        {copiedKey === 'p_pass' ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
+                        <span>{copiedKey === 'p_pass' ? 'Kopyalandı' : 'Kopyala'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-md)', padding: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#92400e' }}>
+                    Bu müşteri için henüz portal giriş şifresi tanımlanmadı
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#b45309', marginTop: '2px' }}>
+                    Müşterinin portala giriş yapabilmesi için tek tıkla şifre belirleyip hesap açabilirsiniz.
+                  </div>
+                </div>
+
+                {currentUser.role === 'admin' && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      setEditPortalEmail(customer.email || 'musteri@firma.com');
+                      setEditPortalPassword('Avdens2026!');
+                      setIsEditingPortalAccess(true);
+                    }}
+                  >
+                    <Key size={14} />
+                    <span>Şimdi Portal Şifresi Belirle</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Başlangıç Bilgi & Belge Talepleri Bannerı */}
           {customerOnboardingRequests.length > 0 ? (
@@ -605,7 +900,7 @@ export default function CustomerDetailView() {
           </div>
 
           {/* Hesap Kartları Grid'i */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))', gap: '18px' }}>
             {customerCredentials.length === 0 ? (
               <div className="card" style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 Henüz hesap bilgisi eklenmemiş.
@@ -729,7 +1024,7 @@ export default function CustomerDetailView() {
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
             {customerFiles.length === 0 ? (
               <div className="card" style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 Henüz yüklenmiş dosya bulunmuyor.
@@ -840,7 +1135,7 @@ export default function CustomerDetailView() {
           </form>
 
           {/* Notlar Kartları */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
             {customerNotes.length === 0 ? (
               <div className="card" style={{ gridColumn: '1 / -1', padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 Henüz eklenmiş not yok.
@@ -1041,7 +1336,7 @@ export default function CustomerDetailView() {
                     Talep Edilen Alanlar & Gelen Veriler ({req.items.length})
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '12px' }}>
                     {req.items.map((item, idx) => {
                       const pwKey = `${req.id}_${item.id || idx}`;
                       const isRevealed = revealedOnboardingPasswords[pwKey];

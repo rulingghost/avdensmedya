@@ -653,6 +653,44 @@ export function AppProvider({ children }) {
       createdAt: new Date().toISOString()
     };
 
+    // Müşteriye özel portal giriş kullanıcısı oluştur (Madde: Müşteri Girişi & Şifre)
+    let newUsers = [...data.users];
+    let createdClientUser = null;
+    const clientEmail = String(customerData.clientEmail || customerData.email || '').toLowerCase().trim();
+    const clientPassword = String(customerData.clientPassword || 'Avdens2026!').trim();
+
+    if (customerData.createPortalUser !== false && clientEmail) {
+      const existingUserIndex = newUsers.findIndex(u => u.email.toLowerCase().trim() === clientEmail);
+      if (existingUserIndex >= 0) {
+        const updatedUser = {
+          ...newUsers[existingUserIndex],
+          role: 'musteri',
+          customerId: newId,
+          company: newCustomer.companyName,
+          password: clientPassword || newUsers[existingUserIndex].password || '123456'
+        };
+        newUsers[existingUserIndex] = updatedUser;
+        createdClientUser = updatedUser;
+        neonUpdateUser(updatedUser.id, updatedUser).catch(console.error);
+      } else {
+        createdClientUser = {
+          id: 'user-cust-' + Date.now(),
+          name: customerData.contactPerson || customerData.companyName,
+          email: clientEmail,
+          password: clientPassword,
+          role: 'musteri',
+          avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
+          title: 'Müşteri Yetkilisi',
+          phone: customerData.phone || '',
+          company: customerData.companyName,
+          customerId: newId,
+          createdAt: new Date().toISOString()
+        };
+        newUsers.push(createdClientUser);
+        neonInsertUser(createdClientUser).catch(console.error);
+      }
+    }
+
     let templateTasks = [];
     if (applyTemplateId) {
       const template = data.templates.find(t => t.id === applyTemplateId);
@@ -682,7 +720,8 @@ export function AppProvider({ children }) {
     setData(prev => ({
       ...prev,
       customers: [newCustomer, ...prev.customers],
-      tasks: [...templateTasks, ...prev.tasks]
+      tasks: [...templateTasks, ...prev.tasks],
+      users: newUsers
     }));
 
     // Neon Veritabanına kaydet
@@ -690,7 +729,7 @@ export function AppProvider({ children }) {
     templateTasks.forEach(t => neonInsertTask(t).catch(console.error));
 
     logActivity(newId, `${currentUser.name} yeni müşteri oluşturdu: ${newCustomer.companyName}`, 'customer_created');
-    addNotification('Yeni Müşteri Eklendi', `${newCustomer.companyName} başarıyla sisteme kaydedildi.`, newId);
+    addNotification('Yeni Müşteri Eklendi', `${newCustomer.companyName} başarıyla sisteme kaydedildi. Portal girişi aktif edildi.`, newId);
 
     return newId;
   };
@@ -718,6 +757,92 @@ export function AppProvider({ children }) {
     }));
     neonUpdateCustomer(customerId, updatedFields).catch(console.error);
     logActivity(customerId, `${currentUser.name} müşteri bilgilerini güncelledi.`);
+  };
+
+  // Müşteri Portal Giriş Şifresi ve E-posta Güncelleme / Sıfırlama
+  const updateCustomerPortalAccess = async (customerId, { email, password, name }) => {
+    const customer = data.customers.find(c => c.id === customerId);
+    if (!customer) return { success: false, message: 'Müşteri bulunamadı.' };
+
+    const targetEmail = String(email || customer.email || '').toLowerCase().trim();
+    const newPass = String(password || '').trim();
+
+    if (!targetEmail) {
+      return { success: false, message: 'Geçerli bir e-posta adresi gereklidir.' };
+    }
+    if (!newPass) {
+      return { success: false, message: 'Şifre alanı boş bırakılamaz.' };
+    }
+
+    const existingUserIndex = data.users.findIndex(u => u.customerId === customerId && u.role === 'musteri');
+
+    if (existingUserIndex >= 0) {
+      const currentPortalUser = data.users[existingUserIndex];
+      const updatedUser = {
+        ...currentPortalUser,
+        email: targetEmail,
+        password: newPass,
+        name: name ? String(name).trim() : currentPortalUser.name,
+        company: customer.companyName
+      };
+
+      setData(prev => ({
+        ...prev,
+        users: prev.users.map((u, idx) => idx === existingUserIndex ? updatedUser : u)
+      }));
+
+      await neonUpdateUser(updatedUser.id, updatedUser).catch(console.error);
+      logActivity(customerId, `${currentUser.name} müşterinin portal giriş şifresini güncelledi.`);
+      return { success: true, user: updatedUser };
+    } else {
+      const newPortalUser = {
+        id: 'user-cust-' + Date.now(),
+        name: name ? String(name).trim() : (customer.contactPerson || customer.companyName),
+        email: targetEmail,
+        password: newPass,
+        role: 'musteri',
+        avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
+        title: 'Müşteri Yetkilisi',
+        phone: customer.phone || '',
+        company: customer.companyName,
+        customerId: customer.id,
+        createdAt: new Date().toISOString()
+      };
+
+      setData(prev => ({
+        ...prev,
+        users: [...prev.users, newPortalUser]
+      }));
+
+      await neonInsertUser(newPortalUser).catch(console.error);
+      logActivity(customerId, `${currentUser.name} müşteriye portal giriş hesabı tanımladı.`);
+      return { success: true, user: newPortalUser };
+    }
+  };
+
+  // Müşteriyi Sil (Bağlı portal kullanıcısıyla birlikte)
+  const deleteCustomer = async (customerId) => {
+    if (currentUser.role !== 'admin') {
+      return { success: false, message: 'Müşteri silme yetkisi yalnızca yöneticilerdedir.' };
+    }
+
+    const customer = data.customers.find(c => c.id === customerId);
+    if (!customer) return { success: false, message: 'Müşteri bulunamadı.' };
+
+    setData(prev => ({
+      ...prev,
+      customers: prev.customers.filter(c => c.id !== customerId),
+      tasks: prev.tasks.filter(t => t.customerId !== customerId),
+      credentials: prev.credentials.filter(cr => cr.customerId !== customerId),
+      files: prev.files.filter(f => f.customerId !== customerId),
+      notes: prev.notes.filter(n => n.customerId !== customerId),
+      comments: prev.comments.filter(cm => cm.customerId !== customerId),
+      users: prev.users.filter(u => u.customerId !== customerId)
+    }));
+
+    await neonDeleteCustomer(customerId).catch(console.error);
+    logActivity('global', `${currentUser.name} "${customer.companyName}" müşterisini sildi.`);
+    return { success: true };
   };
 
   // -------------------------------------------------------------
@@ -1427,6 +1552,8 @@ export function AppProvider({ children }) {
         deleteTask,
         addCustomer,
         updateCustomer,
+        deleteCustomer,
+        updateCustomerPortalAccess,
         addNote,
         deleteNote,
         addCredential,
