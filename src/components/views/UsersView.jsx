@@ -763,6 +763,16 @@ export default function UsersView() {
                     />
                   ))}
                 </div>
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="Veya özel fotoğraf URL'si girin (https://...)"
+                    value={formData.avatar && !PRESET_AVATARS.includes(formData.avatar) ? formData.avatar : ''}
+                    onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
+                    style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                  />
+                </div>
               </div>
 
               {/* Butonlar */}

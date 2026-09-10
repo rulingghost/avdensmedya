@@ -356,6 +356,10 @@ export default async function handler(req, res) {
 
         case 'updateUser': {
           const { id, updates } = payload;
+          try {
+            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;`;
+          } catch (e) {}
+
           if (updates.name) await sql`UPDATE users SET name = ${updates.name} WHERE id = ${id};`;
           if (updates.email) await sql`UPDATE users SET email = ${updates.email} WHERE id = ${id};`;
           if (updates.password) await sql`UPDATE users SET password = ${updates.password} WHERE id = ${id};`;

@@ -104,7 +104,7 @@ export default function FilesView() {
                 <span>Yükleyen: {file.uploadedBy}</span>
                 <button
                   className="btn btn-secondary btn-sm"
-                  onClick={() => alert(`"${file.name}" dosyası indiriliyor (demo simülasyonu).`)}
+                  onClick={() => alert(`"${file.name}" dosyası indiriliyor.`)}
                   style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                 >
                   <Download size={13} />

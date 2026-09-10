@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Lock, Image, Check, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, User, Mail, Phone, Lock, Check, Upload, Link2, Camera, Loader2, RotateCcw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export default function EditProfileModal({ isOpen, onClose }) {
   const { currentUser, updateUserProfile } = useApp();
+
+  const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -14,6 +16,9 @@ export default function EditProfileModal({ isOpen, onClose }) {
     avatar: ''
   });
 
+  const [avatarTab, setAvatarTab] = useState('preset'); // 'preset' | 'upload' | 'url'
+  const [urlInput, setUrlInput] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
@@ -27,20 +32,64 @@ export default function EditProfileModal({ isOpen, onClose }) {
         password: currentUser.password || '123',
         avatar: currentUser.avatar || ''
       });
+      setUrlInput(currentUser.avatar && currentUser.avatar.startsWith('http') ? currentUser.avatar : '');
       setSavedSuccess(false);
+      setIsSaving(false);
     }
   }, [currentUser, isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  // Dosyadan resim yükleme ve merkezden kırparak hafif boyuta küçültme (180x180 px)
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Lütfen geçerli bir görsel dosyası seçiniz (PNG, JPG, WebP vb.).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const size = 180;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Merkezden kare kırpma
+        const minSide = Math.min(img.width, img.height);
+        const startX = (img.width - minSide) / 2;
+        const startY = (img.height - minSide) / 2;
+
+        ctx.drawImage(img, startX, startY, minSide, minSide, 0, 0, size, size);
+        const compactDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        setFormData(prev => ({ ...prev, avatar: compactDataUrl }));
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleApplyUrl = () => {
+    if (urlInput.trim()) {
+      setFormData(prev => ({ ...prev, avatar: urlInput.trim() }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.email.trim()) {
       alert('Lütfen isim ve e-posta alanlarını doldurunuz.');
       return;
     }
 
-    updateUserProfile(formData);
+    setIsSaving(true);
+    await updateUserProfile(formData);
+    setIsSaving(false);
     setSavedSuccess(true);
     setTimeout(() => {
       setSavedSuccess(false);
@@ -52,8 +101,14 @@ export default function EditProfileModal({ isOpen, onClose }) {
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
   ];
+
+  const defaultPlaceholder = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
 
   return (
     <div
@@ -69,7 +124,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
     >
       <div
         className="modal-content"
-        style={{ maxWidth: '520px' }}
+        style={{ maxWidth: '560px' }}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
@@ -96,45 +151,185 @@ export default function EditProfileModal({ isOpen, onClose }) {
               <Check size={28} strokeWidth={3} />
             </div>
             <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>Profil Başarıyla Güncellendi!</h4>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Değişiklikler anında sisteme uygulandı.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Profil fotoğrafı ve bilgileriniz veritabanına kalıcı olarak kaydedildi.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-              {/* Avatar Önizleme & Hızlı Seçim */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'var(--bg-app)', padding: '14px', borderRadius: 'var(--radius-md)' }}>
-                <img
-                  src={formData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-                  alt="Avatar"
-                  style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }}
-                />
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)', display: 'block', marginBottom: '6px' }}>
-                    Profil Fotoğrafı Seçin veya URL Girin:
-                  </span>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {sampleAvatars.map((avUrl, idx) => (
-                      <img
-                        key={idx}
-                        src={avUrl}
-                        alt="Örnek"
-                        onClick={() => setFormData({ ...formData, avatar: avUrl })}
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                          cursor: 'pointer',
-                          border: formData.avatar === avUrl ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                          transform: formData.avatar === avUrl ? 'scale(1.1)' : 'scale(1)'
+              {/* Avatar Yönetim Bölümü */}
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ position: 'relative', width: 68, height: 68, flexShrink: 0 }}>
+                    <img
+                      src={formData.avatar || defaultPlaceholder}
+                      alt="Profil Fotoğrafı"
+                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                      onError={(e) => {
+                        e.target.src = defaultPlaceholder;
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        right: 0,
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        background: 'var(--primary)',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        cursor: 'pointer'
+                      }}
+                      title="Cihazdan fotoğraf seç"
+                    >
+                      <Camera size={13} />
+                    </button>
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                      Profil Fotoğrafı
+                    </div>
+                    <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '2px', marginBottom: '8px' }}>
+                      Kendi fotoğrafınızı yükleyebilir veya hazır avatarlardan birini seçebilirsiniz.
+                    </p>
+
+                    {/* Sekmeler */}
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${avatarTab === 'preset' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setAvatarTab('preset')}
+                        style={{ fontSize: '0.74rem', padding: '4px 8px' }}
+                      >
+                        Hazır Avatarlar
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${avatarTab === 'upload' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => {
+                          setAvatarTab('upload');
+                          fileInputRef.current?.click();
                         }}
-                      />
-                    ))}
+                        style={{ fontSize: '0.74rem', padding: '4px 8px' }}
+                      >
+                        <Upload size={12} />
+                        <span>Fotoğraf Yükle</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${avatarTab === 'url' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setAvatarTab('url')}
+                        style={{ fontSize: '0.74rem', padding: '4px 8px' }}
+                      >
+                        <Link2 size={12} />
+                        <span>URL Gir</span>
+                      </button>
+                      {formData.avatar && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => setFormData(prev => ({ ...prev, avatar: defaultPlaceholder }))}
+                          style={{ fontSize: '0.74rem', padding: '4px 8px', color: 'var(--text-muted)' }}
+                          title="Varsayılan fotoğrafa dön"
+                        >
+                          <RotateCcw size={12} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Gizli Dosya Girişi */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                />
+
+                {/* Hazır Avatarlar Listesi */}
+                {avatarTab === 'preset' && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                    {sampleAvatars.map((avUrl, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setFormData(prev => ({ ...prev, avatar: avUrl }))}
+                        style={{
+                          position: 'relative',
+                          width: 38,
+                          height: 38,
+                          borderRadius: '50%',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          border: formData.avatar === avUrl ? '2px solid var(--primary)' : '2px solid transparent',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        <img
+                          src={avUrl}
+                          alt={`Avatar ${idx + 1}`}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            borderRadius: '50%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                        {formData.avatar === avUrl && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: -2,
+                            right: -2,
+                            width: 14,
+                            height: 14,
+                            borderRadius: '50%',
+                            background: 'var(--primary)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Check size={9} strokeWidth={3} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* URL Giriş Alanı */}
+                {avatarTab === 'url' && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="url"
+                      className="form-input"
+                      placeholder="https://örnek.com/fotograf.jpg"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      style={{ fontSize: '0.82rem', padding: '6px 10px' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={handleApplyUrl}
+                      style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+                    >
+                      Uygula
+                    </button>
+                  </div>
+                )}
               </div>
 
+              {/* Kullanıcı Bilgileri */}
               <div className="form-group">
                 <label>Ad Soyad *</label>
                 <input
@@ -165,6 +360,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
                     className="form-input"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+90 5XX XXX XX XX"
                   />
                 </div>
               </div>
@@ -177,6 +373,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
                     className="form-input"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Örn: Ajans Yöneticisi"
                   />
                 </div>
 
@@ -195,12 +392,21 @@ export default function EditProfileModal({ isOpen, onClose }) {
             </div>
 
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isSaving}>
                 İptal
               </button>
-              <button type="submit" className="btn btn-primary">
-                <Check size={16} />
-                <span>Değişiklikleri Kaydet</span>
+              <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    <span>Kaydediliyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    <span>Değişiklikleri Kaydet</span>
+                  </>
+                )}
               </button>
             </div>
           </form>

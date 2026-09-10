@@ -165,6 +165,27 @@ export function AppProvider({ children }) {
       if (result.data) {
         setData(result.data);
         setDbStatus('connected');
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(result.data));
+        } catch (e) {}
+
+        // Aktif kullanıcının güncel bilgilerini (avatar, unvan vb.) veritabanından gelen veriyle senkronize et
+        try {
+          const savedUserId = localStorage.getItem('AVDENS_WORK_CURRENT_USER_ID');
+          if (savedUserId && result.data.users) {
+            const freshUser = result.data.users.find(u => u.id === savedUserId);
+            if (freshUser) {
+              setCurrentUser(freshUser);
+            }
+          }
+          const savedAuthUserId = localStorage.getItem('AVDENS_WORK_AUTH_USER_ID');
+          if (savedAuthUserId && result.data.users) {
+            const freshAuthUser = result.data.users.find(u => u.id === savedAuthUserId);
+            if (freshAuthUser) {
+              setAuthenticatedUser(freshAuthUser);
+            }
+          }
+        } catch (e) {}
       }
     } catch (err) {
       setIsSyncing(false);
@@ -178,14 +199,12 @@ export function AppProvider({ children }) {
     loadDataFromDb();
   }, [loadDataFromDb]);
 
-  // Eğer veritabanı henüz yapılandırılmadıysa geçici yerel yedek tut (veri kaybını önleme)
+  // Veri her değiştiğinde yerel önbelleği güncelle (anlık yenilemelerde avatar/veri kaybını önleme)
   useEffect(() => {
-    if (dbStatus === 'unconfigured') {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      } catch (e) {}
-    }
-  }, [data, dbStatus]);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  }, [data]);
 
   // Neon Veritabanını Başlat (Tabloları ve Başlangıç Verilerini Oluştur)
   const initDatabaseToCloud = async (customData = null) => {
@@ -265,16 +284,27 @@ export function AppProvider({ children }) {
       localStorage.setItem('AVDENS_WORK_CURRENT_USER_ID', updatedUser.id);
     } catch (e) {}
 
-    setData(prev => ({
-      ...prev,
-      users: prev.users.map(u => u.id === updatedUser.id ? updatedUser : u),
-      customers: updatedUser.role === 'araci'
-        ? prev.customers.map(c => c.partnerId === updatedUser.id ? { ...c, partnerName: updatedUser.name } : c)
-        : prev.customers
-    }));
+    setData(prev => {
+      const nextData = {
+        ...prev,
+        users: prev.users.map(u => u.id === updatedUser.id ? updatedUser : u),
+        customers: updatedUser.role === 'araci'
+          ? prev.customers.map(c => c.partnerId === updatedUser.id ? { ...c, partnerName: updatedUser.name } : c)
+          : prev.customers
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+      } catch (e) {}
+      return nextData;
+    });
 
     // Neon veritabanına yaz
-    neonUpdateUser(updatedUser.id, safeFields).catch(console.error);
+    try {
+      await neonUpdateUser(updatedUser.id, safeFields);
+    } catch (err) {
+      console.error('Kullanıcı profili veritabanına yazılamadı:', err);
+    }
+
     logActivity('global', `${updatedUser.name} profil bilgilerini güncelledi.`);
     return true;
   };
@@ -420,17 +450,27 @@ export function AppProvider({ children }) {
       } catch (e) {}
     }
 
-    setData(prev => ({
-      ...prev,
-      users: prev.users.map(u => u.id === userId ? updatedUser : u),
-      // Eğer aracının adı değiştiyse, ona bağlı müşterilerin partnerName alanını güncelle
-      customers: updatedUser.role === 'araci'
-        ? prev.customers.map(c => c.partnerId === userId ? { ...c, partnerName: updatedUser.name } : c)
-        : prev.customers
-    }));
+    setData(prev => {
+      const nextData = {
+        ...prev,
+        users: prev.users.map(u => u.id === userId ? updatedUser : u),
+        // Eğer aracının adı değiştiyse, ona bağlı müşterilerin partnerName alanını güncelle
+        customers: updatedUser.role === 'araci'
+          ? prev.customers.map(c => c.partnerId === userId ? { ...c, partnerName: updatedUser.name } : c)
+          : prev.customers
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+      } catch (e) {}
+      return nextData;
+    });
 
     // Neon veritabanına yaz
-    neonUpdateUser(userId, updates).catch(console.error);
+    try {
+      await neonUpdateUser(userId, updates);
+    } catch (err) {
+      console.error('Kullanıcı güncellenemedi:', err);
+    }
 
     logActivity('global', `${currentUser.name}, yetkili "${updatedUser.name}" bilgilerini güncelledi.`);
     return { success: true, user: updatedUser };

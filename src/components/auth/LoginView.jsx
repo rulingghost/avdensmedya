@@ -1,27 +1,22 @@
 import React, { useState } from 'react';
 import {
   Sparkles,
-  ShieldCheck,
-  UserCheck,
-  Building2,
   Lock,
   Mail,
   ArrowRight,
   Eye,
   EyeOff,
-  CheckCircle2,
   AlertCircle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export default function LoginView() {
-  const { data, login } = useApp();
+  const { login } = useApp();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [showAccountHelper, setShowAccountHelper] = useState(false);
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
@@ -30,12 +25,6 @@ export default function LoginView() {
     if (!res.success) {
       setErrorMessage(res.message);
     }
-  };
-
-  const fillCredentials = (accEmail, accPass) => {
-    setEmail(accEmail);
-    setPassword(accPass);
-    setErrorMessage('');
   };
 
   return (
@@ -183,79 +172,11 @@ export default function LoginView() {
           </button>
         </form>
 
-        {/* Canlı Sistem Hesap Bilgileri Rehberi (Açılır/Kapanır) */}
-        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-          <button
-            type="button"
-            onClick={() => setShowAccountHelper(!showAccountHelper)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-              fontWeight: 600
-            }}
-          >
-            <span>Sistem Giriş Bilgileri Rehberi</span>
-            <span style={{ fontSize: '0.85rem' }}>{showAccountHelper ? '▲' : '▼'}</span>
-          </button>
-
-          {showAccountHelper && (
-            <div style={{
-              marginTop: '10px',
-              padding: '10px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-color)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              maxHeight: '260px',
-              overflowY: 'auto'
-            }}>
-              {data.users.map((u) => {
-                const isAdm = u.role === 'admin';
-                const isAraci = u.role === 'araci';
-                const roleColor = isAdm ? 'var(--primary)' : isAraci ? '#16a34a' : '#ea580c';
-                const roleIcon = isAdm ? '👑' : isAraci ? '🤝' : '🏢';
-                const roleTitle = isAdm ? 'Yönetici' : isAraci ? 'İş Ortağı' : 'Müşteri';
-
-                return (
-                  <div
-                    key={u.id}
-                    onClick={() => fillCredentials(u.email, u.password || '123')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '6px 10px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      background: '#ffffff',
-                      border: '1px solid var(--border-subtle)',
-                      fontSize: '0.78rem'
-                    }}
-                    title="Formu Doldur"
-                  >
-                    <div style={{ overflow: 'hidden' }}>
-                      <strong style={{ color: roleColor }}>{roleIcon} {roleTitle}: {u.name}</strong>
-                      <div style={{ color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                        {u.email} / {u.password || '123'}
-                      </div>
-                    </div>
-                    <span style={{ fontSize: '0.72rem', color: roleColor, fontWeight: 700, flexShrink: 0, marginLeft: '8px' }}>
-                      Doldur ✎
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        {/* Kurumsal Alt Bilgi */}
+        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+            © {new Date().getFullYear()} Avdens Work. Güvenli Giriş Portalı.
+          </p>
         </div>
 
       </div>

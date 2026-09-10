@@ -199,7 +199,14 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
             style={{ flex: 1, cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.15s' }}
             title="Profili Düzenlemek İçin Tıklayın"
           >
-            <img src={currentUser.avatar} alt={currentUser.name} className="user-avatar" />
+            <img
+              src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              alt={currentUser.name}
+              className="user-avatar"
+              onError={(e) => {
+                e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+              }}
+            />
             <div className="user-details" style={{ overflow: 'hidden' }}>
               <h4 style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{currentUser.name}</h4>
               <span>

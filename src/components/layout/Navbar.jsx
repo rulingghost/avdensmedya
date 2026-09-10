@@ -202,8 +202,11 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
             title="Profil Menüsü"
           >
             <img
-              src={currentUser.avatar}
+              src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={currentUser.name}
+              onError={(e) => {
+                e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+              }}
               style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(56, 189, 248, 0.4)' }}
             />
             <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
