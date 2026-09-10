@@ -10,7 +10,7 @@ export default function FilesView() {
 
   const [selectedCustomerId, setSelectedCustomerId] = useState(() => {
     if (currentUser.role === 'musteri') {
-      return currentUser.customerId || 'cust-omtek';
+      return currentUser.customerId || accessibleCustomers[0]?.id || '';
     }
     return accessibleCustomers[0]?.id || '';
   });

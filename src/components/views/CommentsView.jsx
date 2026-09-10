@@ -16,7 +16,7 @@ export default function CommentsView() {
 
   const [selectedCustomerId, setLocalCustomerId] = useState(() => {
     if (currentUser.role === 'musteri') {
-      return currentUser.customerId || 'cust-omtek';
+      return currentUser.customerId || accessibleCustomers[0]?.id || '';
     }
     return accessibleCustomers[0]?.id || '';
   });

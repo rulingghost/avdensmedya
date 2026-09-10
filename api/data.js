@@ -395,6 +395,9 @@ export default async function handler(req, res) {
           await sql`DELETE FROM files;`;
           await sql`DELETE FROM comments;`;
           await sql`DELETE FROM onboarding_requests;`;
+          await sql`DELETE FROM activities;`;
+          await sql`DELETE FROM notifications;`;
+          await sql`DELETE FROM users WHERE role = 'musteri';`;
           return res.status(200).json({ success: true });
         }
 

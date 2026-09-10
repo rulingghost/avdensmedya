@@ -74,7 +74,7 @@ export default function NewCustomerModal({ isOpen, onClose }) {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Örn: OMTEK Lazer, ABC Mobilya"
+                  placeholder="Örn: ABC Teknoloji, Yılmaz Mobilya"
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                   required

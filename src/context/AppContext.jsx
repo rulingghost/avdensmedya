@@ -49,7 +49,7 @@ import {
 
 const AppContext = createContext();
 
-const STORAGE_KEY = 'AVDENS_WORK_STORAGE_V3';
+const STORAGE_KEY = 'AVDENS_WORK_STORAGE_V4';
 
 export function AppProvider({ children }) {
   // İlk veri durumu
@@ -124,7 +124,7 @@ export function AppProvider({ children }) {
   });
 
   // Seçili müşteri (Detay ekranı için)
-  const [selectedCustomerId, setSelectedCustomerId] = useState('cust-omtek');
+  const [selectedCustomerId, setSelectedCustomerId] = useState(() => data.customers[0]?.id || '');
 
   // Aktif sayfa/sekme navigasyonu
   const [activePage, setActivePage] = useState('dashboard');
@@ -230,7 +230,7 @@ export function AppProvider({ children }) {
     } catch (e) {}
 
     if (user.role === 'musteri') {
-      setSelectedCustomerId(user.customerId || 'cust-omtek');
+      setSelectedCustomerId(user.customerId || data.customers[0]?.id || '');
       setActivePage('dashboard');
     } else {
       setActivePage('dashboard');
@@ -1337,33 +1337,10 @@ export function AppProvider({ children }) {
     }
   };
 
-  const resetToDefaultData = () => {
-    if (currentUser.role !== 'admin') return;
-    const defaultData = {
-      users: INITIAL_USERS,
-      customers: INITIAL_CUSTOMERS,
-      categories: INITIAL_CATEGORIES,
-      tasks: INITIAL_TASKS,
-      credentials: INITIAL_CREDENTIALS,
-      notes: INITIAL_NOTES,
-      files: INITIAL_FILES,
-      comments: INITIAL_COMMENTS,
-      activities: INITIAL_ACTIVITIES,
-      notifications: INITIAL_NOTIFICATIONS,
-      templates: INITIAL_TEMPLATES,
-      onboardingRequests: INITIAL_ONBOARDING_REQUESTS
-    };
-    setData(defaultData);
-    localStorage.removeItem(STORAGE_KEY);
-    if (dbStatus === 'connected') {
-      initDatabaseToCloud(defaultData);
-    }
-  };
-
   const clearAllData = () => {
     if (currentUser.role !== 'admin') return;
     const emptyData = {
-      users: INITIAL_USERS,
+      users: data.users.filter(u => u.role !== 'musteri'),
       customers: [],
       categories: data.categories,
       tasks: [],
@@ -1376,18 +1353,11 @@ export function AppProvider({ children }) {
         customerId: null,
         customerName: 'Sistem',
         userName: currentUser.name,
-        actionText: 'Tüm sistem veritabanı sıfırlandı. Temiz çalışma alanı hazırlandı.',
+        actionText: 'Tüm sistem veritabanı temizlendi.',
         type: 'system',
         createdAt: new Date().toISOString()
       }],
-      notifications: [{
-        id: 'notif-cleared',
-        title: 'Veritabanı Sıfırlandı',
-        message: 'Tüm müşteri ve görev kayıtları başarıyla temizlendi.',
-        read: false,
-        createdAt: new Date().toISOString(),
-        linkCustomerId: null
-      }],
+      notifications: [],
       templates: data.templates,
       onboardingRequests: []
     };
@@ -1396,7 +1366,7 @@ export function AppProvider({ children }) {
     if (dbStatus === 'connected') {
       neonClearAllData().catch(console.error);
     }
-    logActivity('global', `${currentUser.name} tüm sistem verilerini sıfırladı.`);
+    logActivity('global', `${currentUser.name} tüm sistem verilerini temizledi.`);
   };
 
   // Müşteri bazlı hesaplamalar
@@ -1421,7 +1391,7 @@ export function AppProvider({ children }) {
       return data.customers.filter(c => c.partnerId === currentUser.id || c.partnerName?.includes(currentUser.name));
     }
     if (currentUser.role === 'musteri') {
-      return data.customers.filter(c => c.id === (currentUser.customerId || 'cust-omtek'));
+      return data.customers.filter(c => c.id === (currentUser.customerId || ''));
     }
     return data.customers;
   };
@@ -1481,7 +1451,6 @@ export function AppProvider({ children }) {
         submitWaitingTaskResponse,
         exportDataAsJSON,
         importDataFromJSON,
-        resetToDefaultData,
         clearAllData,
         // Kullanıcı & Yetkili Yönetimi
         addUser,

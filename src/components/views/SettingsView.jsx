@@ -3,7 +3,6 @@ import {
   Settings,
   Download,
   Upload,
-  RotateCcw,
   Database,
   CheckCircle2,
   AlertTriangle,
@@ -17,7 +16,6 @@ import { useApp } from '../../context/AppContext';
 export default function SettingsView() {
   const {
     data,
-    resetToDefaultData,
     clearAllData,
     exportDataAsJSON,
     importDataFromJSON,
@@ -49,13 +47,6 @@ export default function SettingsView() {
     };
     reader.readAsText(file);
     e.target.value = null;
-  };
-
-  const handleResetDemo = () => {
-    if (window.confirm('TÜM veriler orijinal OMTEK Lazer demo başlangıç haline döndürülecektir. Emin misiniz?')) {
-      resetToDefaultData();
-      showNotification('Sistem verileri orijinal Demo (OMTEK Lazer) başlangıç durumuna sıfırlandı.', 'success');
-    }
   };
 
   const handleClearAll = () => {
@@ -199,46 +190,18 @@ export default function SettingsView() {
         </div>
       </div>
 
-      {/* 3. SIFIRLAMA BÖLÜMLERİ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
-        
-        {/* Demo Verilerini Sıfırla */}
-        <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--primary)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <RotateCcw size={18} color="var(--primary)" />
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                Demo Verilerini Sıfırla
-              </h3>
-            </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', lineHeight: 1.5 }}>
-              Sistemi dokümandaki orijinal <strong>OMTEK Lazer (18 Görev, %67 İlerleme)</strong> hazır başlangıç veritabanı durumuna geri döndürür.
-            </p>
-          </div>
-
-          <div>
-            <button
-              className="btn btn-secondary"
-              onClick={handleResetDemo}
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              <RotateCcw size={15} />
-              <span>Demo Verilerini Yükle</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tüm Verileri Sıfırla */}
-        <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--danger)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
+      {/* 3. SIFIRLAMA / TEMİZLEME BÖLÜMÜ */}
+      <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--danger)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <Trash2 size={18} color="var(--danger)" />
               <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--danger)' }}>
-                Tüm Verileri Sıfırla
+                Tüm Verileri Sıfırla (Temizle)
               </h3>
             </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', lineHeight: 1.5 }}>
-              Tüm müşterileri, görevleri, şifre kasasını, dosyaları ve notları tamamen siler. <strong>Sıfır ve temiz</strong> bir çalışma ortamı sunar.
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', lineHeight: 1.5, maxWidth: '600px' }}>
+              Tüm müşterileri, görevleri, şifre kasasını, dosyaları ve notları tamamen siler. <strong>Sıfır ve temiz</strong> bir çalışma ortamı sunar. Yöneticiler ve sistem kategorileri korunur.
             </p>
           </div>
 
@@ -246,14 +209,13 @@ export default function SettingsView() {
             <button
               className="btn btn-danger-outline"
               onClick={handleClearAll}
-              style={{ width: '100%', justifyContent: 'center', borderColor: '#fca5a5', color: 'var(--danger)' }}
+              style={{ padding: '10px 18px', borderColor: '#fca5a5', color: 'var(--danger)', fontWeight: 700 }}
             >
-              <Trash2 size={15} />
-              <span>Tüm Verileri Sıfırla (Temizle)</span>
+              <Trash2 size={16} />
+              <span>Veritabanını Temizle</span>
             </button>
           </div>
         </div>
-
       </div>
 
     </div>
