@@ -123,29 +123,6 @@ export default function CustomerDetailView() {
   // Müşterinin portal giriş kullanıcısı (Madde: Müşteri Girişi & Şifre)
   const portalUser = data.users.find(u => u.customerId === customer.id && u.role === 'musteri');
 
-  // Otomatik düzeltme: Yanlışlıkla alan adı olarak girilmiş kullanıcı adı/şifreleri standartlaştır
-  useEffect(() => {
-    customerCredentials.forEach(cred => {
-      const omtekField = cred.fields?.find(f => f.key && f.key.toLowerCase().trim() === 'omteklazer');
-      if (omtekField) {
-        const usernameVal = 'omteklazer';
-        const passVal = omtekField.value || 'Omtek028.';
-        const otherFields = (cred.fields || []).filter(f => f !== omtekField && f.key !== 'Şifre');
-        const fixedFields = [
-          { key: 'Kullanıcı Adı', value: usernameVal, isSecret: false },
-          { key: 'Şifre', value: passVal, isSecret: true },
-          ...otherFields
-        ];
-        updateCredential(cred.id, {
-          serviceType: cred.serviceType,
-          serviceName: cred.serviceName,
-          clientVisible: cred.clientVisible,
-          fields: fixedFields
-        });
-      }
-    });
-  }, [customerCredentials, updateCredential]);
-
   const handleSavePortalAccess = async (e) => {
     e.preventDefault();
     if (!editPortalEmail.trim() || !editPortalPassword.trim()) return;
@@ -991,52 +968,64 @@ export default function CustomerDetailView() {
 
                   {/* Alanlar Listesi */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: 'var(--bg-app)', padding: '14px', borderRadius: 'var(--radius-md)' }}>
-                    {cred.fields.map((f, idx) => {
-                      const fieldId = `${cred.id}_${idx}`;
-                      const isRevealed = revealedPasswords[fieldId];
-                      const isCopied = copiedKey === fieldId;
+                    {(() => {
+                      let fieldsToRender = cred.fields || [];
+                      const omtekField = fieldsToRender.find(f => f.key && f.key.toLowerCase().trim() === 'omteklazer');
+                      if (omtekField) {
+                        const passVal = omtekField.value || 'Omtek028.';
+                        fieldsToRender = [
+                          { key: 'Kullanıcı Adı', value: 'omteklazer', isSecret: false },
+                          { key: 'Şifre', value: passVal, isSecret: true },
+                          ...fieldsToRender.filter(f => f !== omtekField && f.key !== 'Şifre')
+                        ];
+                      }
+                      return fieldsToRender.map((f, idx) => {
+                        const fieldId = `${cred.id}_${idx}`;
+                        const isRevealed = revealedPasswords[fieldId];
+                        const isCopied = copiedKey === fieldId;
 
-                      return (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '0.84rem' }}>
-                          <span style={{ color: 'var(--text-muted)', fontWeight: 500, minWidth: '90px' }}>
-                            {f.key}:
-                          </span>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, justifyContent: 'flex-end' }}>
-                            <span
-                              style={{
-                                fontFamily: f.isSecret && !isRevealed ? 'monospace' : 'inherit',
-                                fontWeight: 600,
-                                color: 'var(--text-main)',
-                                wordBreak: 'break-all'
-                              }}
-                            >
-                              {f.isSecret && !isRevealed ? '••••••••••••' : f.value}
+                        return (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '0.84rem' }}>
+                            <span style={{ color: 'var(--text-muted)', fontWeight: 500, minWidth: '90px' }}>
+                              {f.key}:
                             </span>
 
-                            {/* Şifre Göster / Gizle Butonu (Madde 12) */}
-                            {f.isSecret && (
-                              <button
-                                onClick={() => togglePasswordVisibility(fieldId)}
-                                style={{ color: 'var(--primary)', padding: '2px 6px' }}
-                                title={isRevealed ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, justifyContent: 'flex-end' }}>
+                              <span
+                                style={{
+                                  fontFamily: f.isSecret && !isRevealed ? 'monospace' : 'inherit',
+                                  fontWeight: 600,
+                                  color: 'var(--text-main)',
+                                  wordBreak: 'break-all'
+                                }}
                               >
-                                {isRevealed ? <EyeOff size={15} /> : <Eye size={15} />}
-                              </button>
-                            )}
+                                {f.isSecret && !isRevealed ? '••••••••••••' : f.value}
+                              </span>
 
-                            {/* Kopyalama Butonu */}
-                            <button
-                              onClick={() => handleCopy(fieldId, f.value)}
-                              style={{ color: isCopied ? 'var(--success)' : 'var(--text-muted)', padding: '2px 6px' }}
-                              title="Panoya Kopyala"
-                            >
-                              {isCopied ? <Check size={14} /> : <Copy size={14} />}
-                            </button>
+                              {/* Şifre Göster / Gizle Butonu (Madde 12) */}
+                              {f.isSecret && (
+                                <button
+                                  onClick={() => togglePasswordVisibility(fieldId)}
+                                  style={{ color: 'var(--primary)', padding: '2px 6px' }}
+                                  title={isRevealed ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
+                                >
+                                  {isRevealed ? <EyeOff size={15} /> : <Eye size={15} />}
+                                </button>
+                              )}
+
+                              {/* Kopyalama Butonu */}
+                              <button
+                                onClick={() => handleCopy(fieldId, f.value)}
+                                style={{ color: isCopied ? 'var(--success)' : 'var(--text-muted)', padding: '2px 6px' }}
+                                title="Panoya Kopyala"
+                              >
+                                {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
 
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textAlign: 'right' }}>
