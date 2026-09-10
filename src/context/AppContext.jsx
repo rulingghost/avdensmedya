@@ -15,34 +15,35 @@ import {
   INITIAL_ONBOARDING_REQUESTS
 } from '../data/initialData';
 import {
-  fetchAllData,
-  seedDatabase,
-  dbInsertTask,
-  dbUpdateTask,
-  dbDeleteTask,
-  dbInsertCustomer,
-  dbUpdateCustomer,
-  dbDeleteCustomer,
-  dbInsertCredential,
-  dbUpdateCredential,
-  dbDeleteCredential,
-  dbInsertNote,
-  dbDeleteNote,
-  dbInsertFile,
-  dbDeleteFile,
-  dbInsertComment,
-  dbUpdateComment,
-  dbInsertActivity,
-  dbInsertNotification,
-  dbMarkNotificationRead,
-  dbMarkAllNotificationsRead,
-  dbInsertTemplate,
-  dbUpdateTemplate,
-  dbDeleteTemplate,
-  dbUpdateUser,
-  dbUpdateOnboardingRequest,
-  subscribeToRealtimeChanges
-} from '../services/dbService';
+  fetchNeonData,
+  initNeonDatabase,
+  testNeonHealth,
+  neonInsertTask,
+  neonUpdateTask,
+  neonDeleteTask,
+  neonInsertCustomer,
+  neonUpdateCustomer,
+  neonDeleteCustomer,
+  neonInsertNote,
+  neonDeleteNote,
+  neonInsertCredential,
+  neonUpdateCredential,
+  neonDeleteCredential,
+  neonInsertFile,
+  neonDeleteFile,
+  neonInsertComment,
+  neonUpdateComment,
+  neonInsertActivity,
+  neonInsertNotification,
+  neonMarkNotificationRead,
+  neonMarkAllNotificationsRead,
+  neonInsertTemplate,
+  neonUpdateTemplate,
+  neonDeleteTemplate,
+  neonUpdateUser,
+  neonUpdateOnboardingRequest,
+  neonClearAllData
+} from '../services/neonService';
 
 const AppContext = createContext();
 
@@ -75,8 +76,8 @@ export function AppProvider({ children }) {
     };
   });
 
-  // Veritabanı bağlantı ve senkronizasyon durumları
-  // 'connecting' | 'connected' | 'empty_needs_seed' | 'missing_tables' | 'unconfigured' | 'error'
+  // Veritabanı bağlantı ve senkronizasyon durumları:
+  // 'connecting' | 'connected' | 'empty_needs_init' | 'unconfigured' | 'error'
   const [dbStatus, setDbStatus] = useState('connecting');
   const [dbError, setDbError] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -130,33 +131,32 @@ export function AppProvider({ children }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   // -------------------------------------------------------------
-  // VERİTABANINDAN VERİLERİ YÜKLE
+  // VERİTABANINDAN VERİLERİ YÜKLE (NEON POSTGRESQL)
   // -------------------------------------------------------------
   const loadDataFromDb = useCallback(async () => {
     setIsSyncing(true);
     setDbError(null);
     try {
-      const result = await fetchAllData();
+      const result = await fetchNeonData();
       setIsSyncing(false);
 
-      if (!result.isConfigured) {
+      if (result.status === 'unconfigured') {
         setDbStatus('unconfigured');
         return;
       }
 
-      if (!result.success) {
-        if (result.tableMissing) {
-          setDbStatus('missing_tables');
-        } else {
-          setDbStatus('error');
-          setDbError(result.error);
-        }
+      if (result.status === 'empty_needs_init') {
+        setDbStatus('empty_needs_init');
         return;
       }
 
-      if (result.isEmpty) {
-        setDbStatus('empty_needs_seed');
-      } else {
+      if (!result.success) {
+        setDbStatus('error');
+        setDbError(result.error || result.message);
+        return;
+      }
+
+      if (result.data) {
         setData(result.data);
         setDbStatus('connected');
       }
@@ -167,20 +167,9 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // İlk açılışta veritabanını sorgula ve Realtime dinleyiciyi kur
+  // İlk açılışta veritabanını sorgula
   useEffect(() => {
     loadDataFromDb();
-
-    // Realtime websocket dinleyicisi
-    const unsubscribe = subscribeToRealtimeChanges((payload) => {
-      console.log('Realtime veritabanı güncellemesi:', payload);
-      // Başka cihaz veya kullanıcıdan gelen değişikliği al
-      loadDataFromDb();
-    });
-
-    return () => {
-      if (typeof unsubscribe === 'function') unsubscribe();
-    };
   }, [loadDataFromDb]);
 
   // Eğer veritabanı henüz yapılandırılmadıysa geçici yerel yedek tut (veri kaybını önleme)
@@ -192,16 +181,18 @@ export function AppProvider({ children }) {
     }
   }, [data, dbStatus]);
 
-  // Veritabanına ilk başlangıç verilerini aktar (Seed)
-  const seedDatabaseToCloud = async (customData = null) => {
+  // Neon Veritabanını Başlat (Tabloları ve Başlangıç Verilerini Oluştur)
+  const initDatabaseToCloud = async (customData = null) => {
     setIsSyncing(true);
     try {
-      await seedDatabase(customData || data);
-      await loadDataFromDb();
-      setDbStatus('connected');
-      return { success: true };
+      const res = await initNeonDatabase(customData || data);
+      if (res.success) {
+        await loadDataFromDb();
+        setDbStatus('connected');
+      }
+      return res;
     } catch (err) {
-      console.error('Seed başarısız:', err);
+      console.error('Neon init hatası:', err);
       return { success: false, error: err.message };
     } finally {
       setIsSyncing(false);
@@ -276,8 +267,8 @@ export function AppProvider({ children }) {
         : prev.customers
     }));
 
-    // Veritabanına yaz
-    await dbUpdateUser(updatedUser.id, safeFields);
+    // Neon veritabanına yaz
+    neonUpdateUser(updatedUser.id, safeFields).catch(console.error);
     logActivity('global', `${updatedUser.name} profil bilgilerini güncelledi.`);
     return true;
   };
@@ -298,8 +289,8 @@ export function AppProvider({ children }) {
       ...prev,
       activities: [newAct, ...prev.activities]
     }));
-    // Arka planda veritabanına yaz
-    dbInsertActivity(newAct).catch(console.error);
+    // Arka planda Neon'a yaz
+    neonInsertActivity(newAct).catch(console.error);
   };
 
   // Bildirim Ekleme
@@ -316,8 +307,8 @@ export function AppProvider({ children }) {
       ...prev,
       notifications: [newNotif, ...prev.notifications]
     }));
-    // Arka planda veritabanına yaz
-    dbInsertNotification(newNotif).catch(console.error);
+    // Arka planda Neon'a yaz
+    neonInsertNotification(newNotif).catch(console.error);
   };
 
   // -------------------------------------------------------------
@@ -344,14 +335,14 @@ export function AppProvider({ children }) {
       completedBy: willBeCompleted ? currentUser.name : null
     };
 
-    // Optimistic UI güncellemesi
+    // Optimistic UI
     setData(prev => ({
       ...prev,
       tasks: prev.tasks.map(t => (t.id === taskId ? { ...t, ...updates } : t))
     }));
 
-    // Veritabanına kaydet
-    dbUpdateTask(taskId, updates).catch(console.error);
+    // Neon Veritabanına kaydet
+    neonUpdateTask(taskId, updates).catch(console.error);
 
     if (willBeCompleted) {
       try {
@@ -410,14 +401,14 @@ export function AppProvider({ children }) {
       waitingReason: taskData.waitingReason || ''
     };
 
-    // Optimistic UI güncellemesi
+    // Optimistic UI
     setData(prev => ({
       ...prev,
       tasks: [newTask, ...prev.tasks]
     }));
 
-    // Veritabanına kaydet
-    dbInsertTask(newTask).catch(console.error);
+    // Neon Veritabanına kaydet
+    neonInsertTask(newTask).catch(console.error);
 
     logActivity(
       newTask.customerId,
@@ -449,8 +440,8 @@ export function AppProvider({ children }) {
       tasks: prev.tasks.map(t => (t.id === taskId ? { ...t, ...updatedFields } : t))
     }));
 
-    // Veritabanına kaydet
-    dbUpdateTask(taskId, updatedFields).catch(console.error);
+    // Neon Veritabanına kaydet
+    neonUpdateTask(taskId, updatedFields).catch(console.error);
   };
 
   const deleteTask = (taskId) => {
@@ -468,8 +459,8 @@ export function AppProvider({ children }) {
       tasks: prev.tasks.filter(t => t.id !== taskId)
     }));
 
-    // Veritabanından sil
-    dbDeleteTask(taskId).catch(console.error);
+    // Neon Veritabanından sil
+    neonDeleteTask(taskId).catch(console.error);
     logActivity(task.customerId, `${currentUser.name} görevi sildi: "${task.title}"`);
   };
 
@@ -534,9 +525,9 @@ export function AppProvider({ children }) {
       tasks: [...templateTasks, ...prev.tasks]
     }));
 
-    // Veritabanına kaydet
-    dbInsertCustomer(newCustomer).catch(console.error);
-    templateTasks.forEach(t => dbInsertTask(t).catch(console.error));
+    // Neon Veritabanına kaydet
+    neonInsertCustomer(newCustomer).catch(console.error);
+    templateTasks.forEach(t => neonInsertTask(t).catch(console.error));
 
     logActivity(newId, `${currentUser.name} yeni müşteri oluşturdu: ${newCustomer.companyName}`, 'customer_created');
     addNotification('Yeni Müşteri Eklendi', `${newCustomer.companyName} başarıyla sisteme kaydedildi.`, newId);
@@ -556,7 +547,7 @@ export function AppProvider({ children }) {
         ...prev,
         customers: prev.customers.map(c => (c.id === customerId ? { ...c, ...safeFields } : c))
       }));
-      dbUpdateCustomer(customerId, safeFields).catch(console.error);
+      neonUpdateCustomer(customerId, safeFields).catch(console.error);
       logActivity(customerId, `${currentUser.name} müşteri bilgilerini güncelledi.`);
       return;
     }
@@ -565,7 +556,7 @@ export function AppProvider({ children }) {
       ...prev,
       customers: prev.customers.map(c => (c.id === customerId ? { ...c, ...updatedFields } : c))
     }));
-    dbUpdateCustomer(customerId, updatedFields).catch(console.error);
+    neonUpdateCustomer(customerId, updatedFields).catch(console.error);
     logActivity(customerId, `${currentUser.name} müşteri bilgilerini güncelledi.`);
   };
 
@@ -592,7 +583,7 @@ export function AppProvider({ children }) {
       notes: [newNote, ...prev.notes]
     }));
 
-    dbInsertNote(newNote).catch(console.error);
+    neonInsertNote(newNote).catch(console.error);
     logActivity(customerId, `${currentUser.name} yeni not ekledi.`);
   };
 
@@ -611,7 +602,7 @@ export function AppProvider({ children }) {
       notes: prev.notes.filter(n => n.id !== noteId)
     }));
 
-    dbDeleteNote(noteId).catch(console.error);
+    neonDeleteNote(noteId).catch(console.error);
   };
 
   // -------------------------------------------------------------
@@ -639,7 +630,7 @@ export function AppProvider({ children }) {
       credentials: [...prev.credentials, newCred]
     }));
 
-    dbInsertCredential(newCred).catch(console.error);
+    neonInsertCredential(newCred).catch(console.error);
     logActivity(customerId, `${currentUser.name} "${newCred.serviceType}" hesap bilgisi ekledi.`, 'credential');
   };
 
@@ -660,7 +651,7 @@ export function AppProvider({ children }) {
       credentials: prev.credentials.map(c => c.id === credId ? { ...c, ...updates } : c)
     }));
 
-    dbUpdateCredential(credId, updates).catch(console.error);
+    neonUpdateCredential(credId, updates).catch(console.error);
   };
 
   const deleteCredential = (credId) => {
@@ -675,7 +666,7 @@ export function AppProvider({ children }) {
       credentials: prev.credentials.filter(c => c.id !== credId)
     }));
 
-    dbDeleteCredential(credId).catch(console.error);
+    neonDeleteCredential(credId).catch(console.error);
   };
 
   // -------------------------------------------------------------
@@ -702,7 +693,7 @@ export function AppProvider({ children }) {
       files: [newFile, ...prev.files]
     }));
 
-    dbInsertFile(newFile).catch(console.error);
+    neonInsertFile(newFile).catch(console.error);
     logActivity(customerId, `${currentUser.name} yeni dosya yükledi: ${newFile.name}`);
   };
 
@@ -721,7 +712,7 @@ export function AppProvider({ children }) {
       files: prev.files.filter(f => f.id !== fileId)
     }));
 
-    dbDeleteFile(fileId).catch(console.error);
+    neonDeleteFile(fileId).catch(console.error);
   };
 
   // -------------------------------------------------------------
@@ -747,7 +738,7 @@ export function AppProvider({ children }) {
       comments: [newComment, ...prev.comments]
     }));
 
-    dbInsertComment(newComment).catch(console.error);
+    neonInsertComment(newComment).catch(console.error);
     logActivity(customerId, `${currentUser.name} yeni bir geri bildirim yorumu ekledi.`, 'comment');
     addNotification('Yeni Yorum', `${currentUser.name}: "${message.slice(0, 40)}..."`, customerId);
   };
@@ -772,7 +763,7 @@ export function AppProvider({ children }) {
       comments: prev.comments.map(c => c.id === commentId ? { ...c, reply: replyData } : c)
     }));
 
-    dbUpdateComment(commentId, { reply: replyData }).catch(console.error);
+    neonUpdateComment(commentId, { reply: replyData }).catch(console.error);
   };
 
   // -------------------------------------------------------------
@@ -783,7 +774,7 @@ export function AppProvider({ children }) {
       ...prev,
       notifications: prev.notifications.map(n => n.id === notifId ? { ...n, read: true } : n)
     }));
-    dbMarkNotificationRead(notifId).catch(console.error);
+    neonMarkNotificationRead(notifId).catch(console.error);
   };
 
   const markAllNotificationsRead = () => {
@@ -791,7 +782,7 @@ export function AppProvider({ children }) {
       ...prev,
       notifications: prev.notifications.map(n => ({ ...n, read: true }))
     }));
-    dbMarkAllNotificationsRead().catch(console.error);
+    neonMarkAllNotificationsRead().catch(console.error);
   };
 
   // -------------------------------------------------------------
@@ -829,7 +820,7 @@ export function AppProvider({ children }) {
       tasks: [...newTasks, ...prev.tasks]
     }));
 
-    newTasks.forEach(t => dbInsertTask(t).catch(console.error));
+    newTasks.forEach(t => neonInsertTask(t).catch(console.error));
     logActivity(customerId, `${currentUser.name} "${template.name}" şablonunu projeye uyguladı (${newTasks.length} görev).`);
     addNotification('Şablon Uygulandı', `${newTasks.length} adet görev projeye dahil edildi.`, customerId);
   };
@@ -846,7 +837,7 @@ export function AppProvider({ children }) {
       ...prev,
       templates: [newTemplate, ...prev.templates]
     }));
-    dbInsertTemplate(newTemplate).catch(console.error);
+    neonInsertTemplate(newTemplate).catch(console.error);
     logActivity('global', `${currentUser.name} yeni görev şablonu oluşturdu: "${newTemplate.name}"`);
     addNotification('Yeni Şablon Eklendi', `"${newTemplate.name}" şablonu kullanıma hazır.`);
   };
@@ -857,7 +848,7 @@ export function AppProvider({ children }) {
       ...prev,
       templates: prev.templates.map(t => t.id === templateId ? { ...t, ...updatedData } : t)
     }));
-    dbUpdateTemplate(templateId, updatedData).catch(console.error);
+    neonUpdateTemplate(templateId, updatedData).catch(console.error);
     logActivity('global', `${currentUser.name} "${updatedData.name}" şablonunu güncelledi.`);
   };
 
@@ -868,7 +859,7 @@ export function AppProvider({ children }) {
       ...prev,
       templates: prev.templates.filter(t => t.id !== templateId)
     }));
-    dbDeleteTemplate(templateId).catch(console.error);
+    neonDeleteTemplate(templateId).catch(console.error);
     if (tmpl) {
       logActivity('global', `${currentUser.name} "${tmpl.name}" görev şablonunu sildi.`);
     }
@@ -944,7 +935,7 @@ export function AppProvider({ children }) {
         uploadedAt: new Date().toISOString()
       };
       newFiles.push(newFile);
-      dbInsertFile(newFile).catch(console.error);
+      neonInsertFile(newFile).catch(console.error);
     }
 
     let newNotes = [];
@@ -960,7 +951,7 @@ export function AppProvider({ children }) {
         createdAt: new Date().toISOString()
       };
       newNotes.push(newNote);
-      dbInsertNote(newNote).catch(console.error);
+      neonInsertNote(newNote).catch(console.error);
     }
 
     const taskUpdates = {
@@ -976,7 +967,7 @@ export function AppProvider({ children }) {
       notes: [...newNotes, ...prev.notes]
     }));
 
-    dbUpdateTask(taskId, taskUpdates).catch(console.error);
+    neonUpdateTask(taskId, taskUpdates).catch(console.error);
 
     try {
       confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
@@ -1003,7 +994,7 @@ export function AppProvider({ children }) {
       customers: prev.customers.map(c => c.id === customerId ? { ...c, ...updates } : c)
     }));
 
-    dbUpdateCustomer(customerId, updates).catch(console.error);
+    neonUpdateCustomer(customerId, updates).catch(console.error);
     const customer = data.customers.find(c => c.id === customerId);
     logActivity(customerId, `${customer?.companyName} müşterisi aracı "${partner?.name}" yetkilisine atandı.`);
     addNotification('Aracı Atandı', `${customer?.companyName} için yetkili aracı ${partner?.name} olarak belirlendi.`, customerId);
@@ -1075,7 +1066,7 @@ export function AppProvider({ children }) {
           updatedAt: new Date().toISOString().split('T')[0]
         };
         newCredentials.push(cred);
-        dbInsertCredential(cred).catch(console.error);
+        neonInsertCredential(cred).catch(console.error);
       } else if (itemLabel.toLowerCase().includes('logo') || itemLabel.toLowerCase().includes('dosya')) {
         const file = {
           id: 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
@@ -1089,7 +1080,7 @@ export function AppProvider({ children }) {
           uploadedAt: new Date().toISOString()
         };
         newFiles.push(file);
-        dbInsertFile(file).catch(console.error);
+        neonInsertFile(file).catch(console.error);
       } else {
         const note = {
           id: 'note-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
@@ -1102,7 +1093,7 @@ export function AppProvider({ children }) {
           createdAt: new Date().toISOString()
         };
         newNotes.push(note);
-        dbInsertNote(note).catch(console.error);
+        neonInsertNote(note).catch(console.error);
       }
     });
 
@@ -1119,7 +1110,7 @@ export function AppProvider({ children }) {
               isSubmitted: true
             }))
           };
-          dbUpdateOnboardingRequest(requestId, {
+          neonUpdateOnboardingRequest(requestId, {
             status: 'completed',
             completedAt: updatedReq.completedAt,
             items: updatedReq.items
@@ -1174,9 +1165,8 @@ export function AppProvider({ children }) {
       const parsed = JSON.parse(jsonString);
       if (parsed.customers && parsed.tasks) {
         setData(parsed);
-        // Eğer veritabanı bağlıysa veritabanına da yükle
         if (dbStatus === 'connected') {
-          seedDatabaseToCloud(parsed);
+          initDatabaseToCloud(parsed);
         }
         return { success: true };
       } else {
@@ -1206,7 +1196,7 @@ export function AppProvider({ children }) {
     setData(defaultData);
     localStorage.removeItem(STORAGE_KEY);
     if (dbStatus === 'connected') {
-      seedDatabaseToCloud(defaultData);
+      initDatabaseToCloud(defaultData);
     }
   };
 
@@ -1244,7 +1234,7 @@ export function AppProvider({ children }) {
     setData(emptyData);
     localStorage.removeItem(STORAGE_KEY);
     if (dbStatus === 'connected') {
-      seedDatabaseToCloud(emptyData);
+      neonClearAllData().catch(console.error);
     }
     logActivity('global', `${currentUser.name} tüm sistem verilerini sıfırladı.`);
   };
@@ -1293,13 +1283,13 @@ export function AppProvider({ children }) {
         setActivePage,
         searchQuery,
         setSearchQuery,
-        // Veritabanı durumları
+        // Neon Veritabanı durumları
         dbStatus,
         dbError,
         isSyncing,
         isDbConnected: dbStatus === 'connected',
         loadDataFromDb,
-        seedDatabaseToCloud,
+        initDatabaseToCloud,
         // Eylemler
         toggleTask,
         addTask,

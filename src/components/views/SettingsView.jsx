@@ -1,30 +1,22 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Settings,
   Download,
   Upload,
   RotateCcw,
   Database,
-  Shield,
   CheckCircle2,
   AlertTriangle,
-  FileJson,
-  HardDrive,
   Trash2,
-  Cloud,
   RefreshCw,
   Copy,
   Check,
-  ExternalLink,
-  Key,
-  Globe
+  Server,
+  Zap,
+  ExternalLink
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import {
-  getSupabaseConfig,
-  saveCustomConfig,
-  testSupabaseConnection
-} from '../../lib/supabase';
+import { testNeonHealth } from '../../services/neonService';
 
 export default function SettingsView() {
   const {
@@ -38,25 +30,14 @@ export default function SettingsView() {
     dbError,
     isSyncing,
     loadDataFromDb,
-    seedDatabaseToCloud
+    initDatabaseToCloud
   } = useApp();
 
   const fileInputRef = useRef(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
-
-  // Supabase ayar formu state'leri
-  const [supabaseUrl, setSupabaseUrl] = useState('');
-  const [supabaseKey, setSupabaseKey] = useState('');
-  const [isTestingConn, setIsTestingConn] = useState('');
-  const [testResult, setTestResult] = useState(null);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
-
-  useEffect(() => {
-    const cfg = getSupabaseConfig();
-    setSupabaseUrl(cfg.url || '');
-    setSupabaseKey(cfg.rawAnonKey || '');
-  }, []);
 
   const showNotification = (message, type = 'success') => {
     setFeedback({ message, type });
@@ -96,72 +77,50 @@ export default function SettingsView() {
     }
   };
 
-  // Supabase Bağlantısını Test Et
-  const handleTestConnection = async () => {
-    setIsTestingConn(true);
-    setTestResult(null);
+  // Neon Bağlantısını Test Et
+  const handleTestNeon = async () => {
+    setIsTesting(true);
     try {
-      const res = await testSupabaseConnection(supabaseUrl, supabaseKey);
-      setTestResult(res);
+      const res = await testNeonHealth();
       if (res.success) {
-        showNotification(res.message, res.tableMissing ? 'warning' : 'success');
+        showNotification(res.message, res.status === 'connected' ? 'success' : 'warning');
+        loadDataFromDb();
       } else {
-        showNotification(res.message, 'error');
+        showNotification(res.message || 'Bağlantı hatası: Neon veritabanına ulaşılamadı.', 'error');
       }
     } catch (e) {
-      setTestResult({ success: false, message: e.message });
-      showNotification('Bağlantı hatası: ' + e.message, 'error');
+      showNotification('Test hatası: ' + e.message, 'error');
     } finally {
-      setIsTestingConn(false);
+      setIsTesting(false);
     }
   };
 
-  // Supabase Ayarlarını Kaydet
-  const handleSaveSupabaseConfig = async () => {
-    if (!supabaseUrl.trim() || !supabaseKey.trim()) {
-      saveCustomConfig('', '');
-      showNotification('Supabase bağlantı anahtarları temizlendi. Sistem yerel moda alındı.', 'warning');
-      loadDataFromDb();
+  // Tek Tıkla Veritabanını Başlat (Tabloları ve Demo Verileri Oluştur)
+  const handleInitDatabase = async () => {
+    if (!window.confirm('Neon PostgreSQL veritabanında tablolar oluşturulacak ve başlangıç demo verileri yüklenecektir. Onaylıyor musunuz?')) {
       return;
     }
-
-    const res = saveCustomConfig(supabaseUrl, supabaseKey);
-    if (res.success) {
-      showNotification('Supabase ayarları kaydedildi. Veritabanına bağlanılıyor...', 'success');
-      await loadDataFromDb();
-    } else {
-      showNotification('Ayarlar kaydedilemedi: ' + res.error, 'error');
-    }
-  };
-
-  // Veritabanına İlk Verileri Yükle (Seed)
-  const handleSeedDatabase = async () => {
-    if (!window.confirm('Mevcut müşteri, görev, not ve kullanıcı verileri doğrudan Supabase PostgreSQL veritabanına aktarılacaktır. Devam edilsin mi?')) {
-      return;
-    }
-    setIsSeeding(true);
+    setIsInitializing(true);
     try {
-      const res = await seedDatabaseToCloud();
+      const res = await initDatabaseToCloud();
       if (res.success) {
-        showNotification('Veriler başarıyla Supabase PostgreSQL veritabanına aktarıldı!', 'success');
+        showNotification('Tebrikler! Neon PostgreSQL veritabanı başarıyla oluşturuldu ve hazırlandı.', 'success');
       } else {
-        showNotification('Hata: ' + res.error, 'error');
+        showNotification('Hata: ' + (res.error || 'Veritabanı başlatılamadı.'), 'error');
       }
     } catch (e) {
-      showNotification('Aktarım hatası: ' + e.message, 'error');
+      showNotification('Başlatma hatası: ' + e.message, 'error');
     } finally {
-      setIsSeeding(false);
+      setIsInitializing(false);
     }
   };
 
-  // SQL Şemasını Kopyalama
-  const handleCopySqlSchema = () => {
-    const sqlUrl = window.location.origin + '/supabase_schema.sql';
-    // Doğrudan SQL içeriğini kopyalamak için dosya yolunu bildir
-    navigator.clipboard.writeText(`-- AVDENS WORK SQL Schema dosyasını projenizdeki supabase_schema.sql dosyasından veya GitHub reposundan alıp Supabase SQL Editor'de çalıştırınız.`);
+  // SQL Şema Dosyası Bilgisini Kopyala
+  const handleCopySqlInfo = () => {
+    navigator.clipboard.writeText('-- AVDENS WORK Neon PostgreSQL Şeması proje ana dizinindeki "neon_schema.sql" dosyasında yer almaktadır.');
     setCopiedSql(true);
     setTimeout(() => setCopiedSql(false), 3000);
-    showNotification('SQL şema bilgisi panoya kopyalandı! Proje kök dizinindeki supabase_schema.sql dosyasını Supabase panelinde çalıştırabilirsiniz.', 'success');
+    showNotification('SQL şema bilgisi panoya kopyalandı! Projenizdeki "neon_schema.sql" dosyasını doğrudan Neon SQL konsolunda da çalıştırabilirsiniz.', 'success');
   };
 
   return (
@@ -174,10 +133,10 @@ export default function SettingsView() {
         </div>
         <div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-            Sistem Ayarları & Veritabanı Yönetimi
+            Sistem Ayarları &amp; Veritabanı Yönetimi
           </h2>
           <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            Supabase PostgreSQL bulut veritabanı, gerçek zamanlı senkronizasyon ve veri yönetimi araçları
+            Vercel + Neon (Serverless PostgreSQL) bulut veritabanı ve veri yönetimi araçları
           </span>
         </div>
       </div>
@@ -201,28 +160,28 @@ export default function SettingsView() {
         </div>
       )}
 
-      {/* 1. BULUT VERİTABANI (SUPABASE) YÖNETİM PANELİ */}
+      {/* 1. VERCEL + NEON POSTGRESQL YÖNETİM PANELİ */}
       <div className="card" style={{ padding: '24px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              width: 38,
-              height: 38,
+              width: 40,
+              height: 40,
               borderRadius: 'var(--radius-sm)',
-              background: dbStatus === 'connected' ? 'var(--success-light)' : dbStatus === 'unconfigured' ? 'var(--primary-light)' : 'var(--danger-light)',
-              color: dbStatus === 'connected' ? 'var(--success-text)' : dbStatus === 'unconfigured' ? 'var(--primary)' : 'var(--danger-text)',
+              background: dbStatus === 'connected' ? 'var(--success-light)' : dbStatus === 'empty_needs_init' ? '#fef3c7' : 'var(--primary-light)',
+              color: dbStatus === 'connected' ? 'var(--success-text)' : dbStatus === 'empty_needs_init' ? '#b45309' : 'var(--primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <Database size={20} />
+              <Server size={20} />
             </div>
             <div>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                Bulut Veritabanı (Supabase PostgreSQL)
+                Vercel + Neon (Serverless PostgreSQL)
               </h3>
               <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                Verilerinizin tüm cihazlarda kalıcı, anlık ve bağımsız olarak saklanmasını sağlar
+                Vercel Serverless Functions (/api/*) üzerinden yüksek performanslı bulut veritabanı
               </span>
             </div>
           </div>
@@ -242,7 +201,7 @@ export default function SettingsView() {
                 fontWeight: 700
               }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22c55e' }}></span>
-                PostgreSQL Bağlı & Canlı
+                Neon PostgreSQL Bağlı &amp; Canlı
               </span>
             )}
             {dbStatus === 'connecting' && (
@@ -261,7 +220,7 @@ export default function SettingsView() {
                 Bağlanılıyor...
               </span>
             )}
-            {dbStatus === 'empty_needs_seed' && (
+            {dbStatus === 'empty_needs_init' && (
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -273,22 +232,7 @@ export default function SettingsView() {
                 fontSize: '0.82rem',
                 fontWeight: 700
               }}>
-                Bağlı (Veri Yükleme Bekliyor)
-              </span>
-            )}
-            {dbStatus === 'missing_tables' && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '999px',
-                backgroundColor: '#ffedd5',
-                color: '#c2410c',
-                fontSize: '0.82rem',
-                fontWeight: 700
-              }}>
-                Tablolar Eksik (SQL Çalıştırın)
+                Neon Bağlı (Tablolar Başlatılmalı)
               </span>
             )}
             {dbStatus === 'unconfigured' && (
@@ -303,7 +247,7 @@ export default function SettingsView() {
                 fontSize: '0.82rem',
                 fontWeight: 700
               }}>
-                Yerel Mod (Anahtar Girilmedi)
+                Yerel Mod (Vercel Neon Bekleniyor)
               </span>
             )}
             {dbStatus === 'error' && (
@@ -324,140 +268,81 @@ export default function SettingsView() {
           </div>
         </div>
 
-        {/* Bilgilendirme Kutusu */}
+        {/* Durum Açıklama Kutusu */}
         <div style={{
           padding: '14px 18px',
           backgroundColor: 'var(--bg-app)',
           borderRadius: 'var(--radius-sm)',
-          borderLeft: '4px solid var(--primary)',
+          borderLeft: `4px solid ${dbStatus === 'connected' ? 'var(--success)' : 'var(--primary)'}`,
           fontSize: '0.86rem',
           lineHeight: 1.5,
           color: 'var(--text-main)'
         }}>
           {dbStatus === 'connected' ? (
             <div>
-              <strong>✅ Sistem Canlı Veritabanında Çalışıyor:</strong> Tüm müşteriler, görevler, kasadaki hesaplar ve notlar doğrudan bulut PostgreSQL veritabanında saklanmaktadır. Başka bir sekmeden veya cihazdan yapılan işlemler otomatik olarak anlık (realtime) güncellenir.
+              <strong>✅ Sistem Canlı Neon PostgreSQL Veritabanında Çalışıyor:</strong> Müşteriler, görevler, şifre kasası, dosyalar ve notlar artık tarayıcı hafızasında değil, Vercel Serverless API üzerinden doğrudan Neon bulut veritabanında kalıcı olarak saklanmaktadır.
             </div>
-          ) : dbStatus === 'empty_needs_seed' ? (
+          ) : dbStatus === 'empty_needs_init' ? (
             <div>
-              <strong>⚠️ Veritabanı Boş:</strong> Supabase bağlantısı başarılı oldu ancak tablolarda henüz kayıt yok. Sisteme hemen mevcut demo verilerini yüklemek için aşağıdaki <strong>"Başlangıç Verilerini Yükle (Seed)"</strong> butonuna tıklayabilirsiniz.
-            </div>
-          ) : dbStatus === 'missing_tables' ? (
-            <div>
-              <strong>⚠️ Tablolar Bulunamadı:</strong> Supabase projeniz bağlı ancak gerekli tablolar henüz oluşturulmamış. Proje klasöründeki <code>supabase_schema.sql</code> dosyasını açıp Supabase Dashboard &gt; SQL Editor alanında çalıştırınız.
+              <strong>⚡ Neon Bağlantısı Hazır:</strong> Vercel üzerinden Neon veritabanınız algılandı ancak PostgreSQL tabloları henüz oluşturulmamış. Aşağıdaki <strong>"Tek Tıkla Veritabanını Başlat"</strong> butonuna basarak tüm tabloları ve demo verilerini tek seferde oluşturabilirsiniz.
             </div>
           ) : (
             <div>
-              <strong>ℹ️ Bulut Veritabanı Kurulumu:</strong> Ücretsiz <a href="https://supabase.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>supabase.com</a> hesabı açıp bir proje oluşturduktan sonra Project Settings &gt; API sekmesindeki <strong>Project URL</strong> ve <strong>anon public API Key</strong> değerlerini aşağıdaki forma girerek veya <code>.env</code> dosyasına yazarak hemen canlı veritabanına geçebilirsiniz.
+              <strong>ℹ️ Vercel Neon Entegrasyonu:</strong> Vercel Dashboard &gt; Storage &gt; Neon Postgres bağlantısı yapıldığında sistem otomatik olarak canlı veritabanı moduna geçer. Yerel ortamda çalıştırmak için <code>.env</code> dosyanıza <code>DATABASE_URL</code> ekleyebilirsiniz.
             </div>
           )}
-        </div>
-
-        {/* Supabase Bağlantı Formu */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-muted)' }}>
-              Supabase Project URL
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Globe size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
-              <input
-                type="text"
-                placeholder="https://xyzcompany.supabase.co"
-                value={supabaseUrl}
-                onChange={(e) => setSupabaseUrl(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px 10px 38px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-main)',
-                  fontSize: '0.88rem'
-                }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-muted)' }}>
-              Supabase Anon Public API Key
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Key size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
-              <input
-                type="password"
-                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                value={supabaseKey}
-                onChange={(e) => setSupabaseKey(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px 10px 38px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-main)',
-                  fontSize: '0.88rem'
-                }}
-              />
-            </div>
-          </div>
         </div>
 
         {/* Eylem Butonları */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
             className="btn btn-primary"
-            onClick={handleSaveSupabaseConfig}
+            onClick={handleInitDatabase}
+            disabled={isInitializing}
+            title="Tabloları ve demo verileri Neon veritabanına otomatik yükler"
           >
-            <CheckCircle2 size={16} />
-            <span>Ayarları Kaydet &amp; Bağlan</span>
+            <Zap size={16} />
+            <span>{isInitializing ? 'Başlatılıyor...' : 'Tek Tıkla Veritabanını Başlat'}</span>
           </button>
 
           <button
             className="btn btn-secondary"
-            onClick={handleTestConnection}
-            disabled={isTestingConn}
+            onClick={handleTestNeon}
+            disabled={isTesting}
           >
-            <RefreshCw size={15} className={isTestingConn ? 'spin' : ''} />
-            <span>{isTestingConn ? 'Test Ediliyor...' : 'Bağlantıyı Test Et'}</span>
+            <RefreshCw size={15} className={isTesting ? 'spin' : ''} />
+            <span>{isTesting ? 'Kontrol Ediliyor...' : 'Bağlantıyı Test Et'}</span>
           </button>
 
           <button
             className="btn btn-secondary"
-            onClick={handleSeedDatabase}
-            disabled={isSeeding}
-            title="Mevcut verileri Supabase bulut veritabanına yükler"
-          >
-            <Cloud size={15} />
-            <span>{isSeeding ? 'Aktarılıyor...' : 'Veritabanına Aktar (Seed)'}</span>
-          </button>
-
-          <button
-            className="btn btn-secondary"
-            onClick={handleCopySqlSchema}
+            onClick={handleCopySqlInfo}
           >
             {copiedSql ? <Check size={15} color="var(--success-text)" /> : <Copy size={15} />}
-            <span>SQL Şema Dosyası Bilgisi</span>
+            <span>SQL Şeması (neon_schema.sql)</span>
           </button>
         </div>
 
-        {/* Hızlı Kılavuz */}
+        {/* Hızlı Kurulum Rehberi */}
         <div style={{
-          padding: '14px',
+          padding: '16px',
           background: 'var(--bg-app)',
           borderRadius: 'var(--radius-sm)',
-          fontSize: '0.8rem',
+          fontSize: '0.82rem',
           color: 'var(--text-muted)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '6px'
+          gap: '8px'
         }}>
-          <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>🚀 1 Dakikada Canlı Veritabanı Kurulumu:</div>
-          <div>1. <a href="https://supabase.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>supabase.com</a> üzerinden ücretsiz yeni bir proje oluşturun.</div>
-          <div>2. Projeniz açılınca sol menüdeki <strong>SQL Editor</strong> sekmesine gidin.</div>
-          <div>3. Projenizdeki <code>supabase_schema.sql</code> dosyasının içeriğini yapıştırıp <strong>RUN</strong> butonuna basın.</div>
-          <div>4. <strong>Project Settings &gt; API</strong> sekmesindeki URL ve Anon Key bilgilerini yukarıya girip <strong>Kaydet</strong> butonuna basın. Artık tüm verileriniz bulutta!</div>
+          <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Server size={16} color="var(--primary)" />
+            Vercel Dashboard Üzerinden Neon Ekleme (30 Saniye):
+          </div>
+          <div>1. <a href="https://vercel.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Vercel Dashboard</a> projenize (avdensmedya) gidin.</div>
+          <div>2. Üst menüden <strong>Storage</strong> sekmesine tıklayın ve <strong>Connect Database</strong> butonuna basın.</div>
+          <div>3. <strong>Neon Serverless Postgres</strong> seçeneğini seçip "Create" butonuna tıklayın.</div>
+          <div>4. Vercel, <code>DATABASE_URL</code> ve <code>POSTGRES_URL</code> anahtarlarını projenize otomatik olarak bağlar.</div>
+          <div>5. Ardından bu sayfaya gelip <strong>"Tek Tıkla Veritabanını Başlat"</strong> butonuna basın; tüm tablolarınız ve verileriniz hemen kurulacaktır!</div>
         </div>
       </div>
 

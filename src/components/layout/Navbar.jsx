@@ -118,7 +118,7 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
             cursor: 'pointer',
             transition: 'all 0.15s'
           }}
-          title={dbStatus === 'connected' ? 'Bulut PostgreSQL Veritabanı Bağlı (Supabase)' : 'Veritabanı Ayarlarına Git'}
+          title={dbStatus === 'connected' ? 'Vercel Neon PostgreSQL Veritabanı Bağlı' : 'Veritabanı Ayarlarına Git'}
         >
           <span
             style={{
@@ -129,7 +129,7 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
             }}
           />
           <span style={{ display: 'inline' }}>
-            {dbStatus === 'connected' ? 'Cloud DB' : 'Veritabanı'}
+            {dbStatus === 'connected' ? 'Neon DB' : 'Veritabanı'}
           </span>
         </button>
 
