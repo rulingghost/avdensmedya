@@ -41,7 +41,7 @@ export default function ActivitiesView() {
           </div>
           <div>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              Son Aktiviteler & Sistem Kütüğü (Madde 16)
+              Son Aktiviteler & Sistem Günlüğü
             </h2>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               Sistemde yapılan tüm görev tamamlama, not, şifre ve yorum hareketleri

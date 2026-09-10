@@ -81,7 +81,7 @@ export default function CustomerDetailView() {
 
   // Müşteri verileri (Katı Yetki Denetimi)
   const accessibleCustomers = getAccessibleCustomers();
-  const customer = accessibleCustomers.find(c => c.id === selectedCustomerId);
+  const customer = accessibleCustomers.find(c => c.id === selectedCustomerId) || (currentUser.role === 'musteri' ? accessibleCustomers[0] : null);
 
   if (!customer) {
     return (

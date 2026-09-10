@@ -15,7 +15,9 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
-  Key
+  Key,
+  Copy,
+  Check
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -23,6 +25,7 @@ export default function NewCustomerModal({ isOpen, onClose }) {
   const { data, addCustomer, setSelectedCustomerId, setActivePage, currentUser } = useApp();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const [formData, setFormData] = useState({
     companyName: '',
     contactPerson: '',
@@ -32,15 +35,16 @@ export default function NewCustomerModal({ isOpen, onClose }) {
     website: '',
     instagram: '',
     facebook: '',
-    partnerId: currentUser?.role === 'araci' ? currentUser.id : 'user-araci',
+    partnerId: currentUser?.role === 'araci' ? currentUser.id : (data.users.find(u => u.role === 'araci')?.id || data.users[0]?.id || ''),
     status: 'aktif',
     projectTitle: 'Dijital Pazarlama & Sosyal Medya Yönetimi',
     description: '',
-    applyTemplateId: 'tmpl-sosyal-medya', // Varsayılan olarak şablon seçili
+    applyTemplateId: data.templates[0]?.id || '', // Varsayılan olarak ilk şablon seçili
     createPortalUser: true,
     clientEmail: '',
     clientPassword: 'Avdens2026!'
   });
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   if (!isOpen) return null;
 
@@ -76,8 +80,23 @@ export default function NewCustomerModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '680px' }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+        else setMouseDownOnOverlay(false);
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+        setMouseDownOnOverlay(false);
+      }}
+    >
+      <div
+        className="modal-content"
+        style={{ maxWidth: '680px' }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Başlığı */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -349,15 +368,32 @@ export default function NewCustomerModal({ isOpen, onClose }) {
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <label style={{ fontSize: '0.84rem', fontWeight: 600, marginBottom: 0 }}>Giriş Şifresi *</label>
-                        <button
-                          type="button"
-                          onClick={generateRandomPassword}
-                          style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-                          title="Yeni rastgele güçlü şifre oluştur"
-                        >
-                          <RefreshCw size={12} />
-                          <span>Rastgele Üret</span>
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (formData.clientPassword) {
+                                navigator.clipboard?.writeText(formData.clientPassword);
+                                setPasswordCopied(true);
+                                setTimeout(() => setPasswordCopied(false), 1500);
+                              }
+                            }}
+                            style={{ fontSize: '0.75rem', color: passwordCopied ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}
+                            title="Şifreyi panoya kopyala"
+                          >
+                            {passwordCopied ? <Check size={12} color="var(--success)" /> : <Copy size={12} />}
+                            <span>{passwordCopied ? 'Kopyalandı!' : 'Kopyala'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={generateRandomPassword}
+                            style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                            title="Yeni rastgele güçlü şifre oluştur"
+                          >
+                            <RefreshCw size={12} />
+                            <span>Rastgele Üret</span>
+                          </button>
+                        </div>
                       </div>
                       <div style={{ position: 'relative' }}>
                         <input

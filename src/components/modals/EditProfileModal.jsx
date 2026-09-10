@@ -15,6 +15,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
   });
 
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -55,8 +56,23 @@ export default function EditProfileModal({ isOpen, onClose }) {
   ];
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+        else setMouseDownOnOverlay(false);
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+        setMouseDownOnOverlay(false);
+      }}
+    >
+      <div
+        className="modal-content"
+        style={{ maxWidth: '520px' }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>

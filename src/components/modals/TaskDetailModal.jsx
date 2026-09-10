@@ -21,6 +21,7 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   if (!isOpen || !task) return null;
 
@@ -31,8 +32,23 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
 
   if (!isAccessible) {
     return (
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" style={{ maxWidth: '480px', padding: '32px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-overlay"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+          else setMouseDownOnOverlay(false);
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+          setMouseDownOnOverlay(false);
+        }}
+      >
+        <div
+          className="modal-content"
+          style={{ maxWidth: '480px', padding: '32px', textAlign: 'center' }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           <h3 style={{ color: 'var(--danger)', marginBottom: '8px' }}>Yetkisiz Erişim</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Bu görevi görüntüleme yetkiniz bulunmamaktadır.</p>
           <button className="btn btn-secondary btn-sm" onClick={onClose} style={{ marginTop: '16px' }}>Kapat</button>
@@ -79,8 +95,23 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+        else setMouseDownOnOverlay(false);
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+        setMouseDownOnOverlay(false);
+      }}
+    >
+      <div
+        className="modal-content"
+        style={{ maxWidth: '640px' }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
 
         {/* Modal Başlığı */}
         <div className="modal-header">

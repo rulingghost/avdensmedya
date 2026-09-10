@@ -40,7 +40,7 @@ export default function FilesView() {
           </div>
           <div>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              Proje Dosyaları & Dokümanlar (Madde 14)
+              Proje Dosyaları & Dokümanlar
             </h2>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               {customer?.companyName} • Logo, sözleşme, reklam görselleri ve teslim belgeleri
@@ -119,7 +119,7 @@ export default function FilesView() {
       <AddFileModal
         isOpen={isFileModalOpen}
         onClose={() => setIsFileModalOpen(false)}
-        customerId={customerId}
+        customerId={customer?.id}
       />
     </div>
   );

@@ -12,6 +12,7 @@ export default function CategoryManagerModal({ isOpen, onClose }) {
   // Yeni kategori formu
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#3B82F6');
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   if (!isOpen) return null;
 
@@ -45,8 +46,23 @@ export default function CategoryManagerModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '580px' }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+        else setMouseDownOnOverlay(false);
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+        setMouseDownOnOverlay(false);
+      }}
+    >
+      <div
+        className="modal-content"
+        style={{ maxWidth: '580px' }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>

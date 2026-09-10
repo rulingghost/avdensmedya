@@ -52,6 +52,7 @@ export default function UsersView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -568,9 +569,20 @@ export default function UsersView() {
       {/* EKLEME / DÜZENLEME MODAL'I */}
       {/* ========================================================= */}
       {isModalOpen && (
-        <div className="modal-overlay" onClick={closeModal}>
+        <div
+          className="modal-overlay"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+            else setMouseDownOnOverlay(false);
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && mouseDownOnOverlay) closeModal();
+            setMouseDownOnOverlay(false);
+          }}
+        >
           <div
             className="modal-content"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: '520px', width: '95%' }}
           >

@@ -40,9 +40,13 @@ import {
   neonInsertTemplate,
   neonUpdateTemplate,
   neonDeleteTemplate,
+  neonInsertCategory,
+  neonUpdateCategory,
+  neonDeleteCategory,
   neonInsertUser,
   neonUpdateUser,
   neonDeleteUser,
+  neonInsertOnboardingRequest,
   neonUpdateOnboardingRequest,
   neonClearAllData
 } from '../services/neonService';
@@ -1165,6 +1169,7 @@ export function AppProvider({ children }) {
       ...prev,
       categories: [...prev.categories, newCat]
     }));
+    neonInsertCategory(newCat).catch(console.error);
     logActivity('global', `${currentUser.name} yeni kategori ekledi: "${newCat.name}"`);
     return newCat.id;
   };
@@ -1175,6 +1180,7 @@ export function AppProvider({ children }) {
       ...prev,
       categories: prev.categories.map(c => c.id === catId ? { ...c, ...updatedData } : c)
     }));
+    neonUpdateCategory(catId, updatedData).catch(console.error);
     logActivity('global', `${currentUser.name} kategori güncelledi: "${updatedData.name}"`);
   };
 
@@ -1185,6 +1191,7 @@ export function AppProvider({ children }) {
       ...prev,
       categories: prev.categories.filter(c => c.id !== catId)
     }));
+    neonDeleteCategory(catId).catch(console.error);
     if (cat) {
       logActivity('global', `${currentUser.name} "${cat.name}" kategorisini sildi.`);
     }
@@ -1311,6 +1318,8 @@ export function AppProvider({ children }) {
       ...prev,
       onboardingRequests: [newRequest, ...prev.onboardingRequests]
     }));
+
+    neonInsertOnboardingRequest(newRequest).catch(console.error);
 
     logActivity(customerId, `${customer?.companyName} projesine işe başlama bilgi talebi gönderildi.`);
     addNotification(
@@ -1516,7 +1525,12 @@ export function AppProvider({ children }) {
       return data.customers.filter(c => c.partnerId === currentUser.id || c.partnerName?.includes(currentUser.name));
     }
     if (currentUser.role === 'musteri') {
-      return data.customers.filter(c => c.id === (currentUser.customerId || ''));
+      const byId = data.customers.filter(c => c.id === (currentUser.customerId || ''));
+      if (byId.length > 0) return byId;
+      return data.customers.filter(c =>
+        (c.email && currentUser.email && c.email.toLowerCase().trim() === currentUser.email.toLowerCase().trim()) ||
+        (c.companyName && currentUser.company && c.companyName.toLowerCase().trim() === currentUser.company.toLowerCase().trim())
+      );
     }
     return data.customers;
   };

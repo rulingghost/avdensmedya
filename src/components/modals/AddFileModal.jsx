@@ -9,6 +9,7 @@ export default function AddFileModal({ isOpen, onClose, customerId }) {
   const [category, setCategory] = useState('Logo');
   const [description, setDescription] = useState('');
   const [fileSize, setFileSize] = useState('2.5 MB');
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   if (!isOpen) return null;
 
@@ -31,8 +32,23 @@ export default function AddFileModal({ isOpen, onClose, customerId }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+        else setMouseDownOnOverlay(false);
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+        setMouseDownOnOverlay(false);
+      }}
+    >
+      <div
+        className="modal-content"
+        style={{ maxWidth: '520px' }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <UploadCloud size={20} color="var(--primary)" />

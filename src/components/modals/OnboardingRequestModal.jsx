@@ -17,6 +17,7 @@ export default function OnboardingRequestModal({ isOpen, onClose, customerId }) 
     { label: 'WhatsApp İletişim Numarası & Onay Yetkilisi', type: 'text', required: true },
     { label: 'Kurumsal Renk ve Tasarım Tercihleri', type: 'note', required: false }
   ]);
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   if (!isOpen) return null;
 
@@ -73,13 +74,34 @@ export default function OnboardingRequestModal({ isOpen, onClose, customerId }) 
       return;
     }
 
-    createOnboardingRequest(customer.id, title, description, validItems);
+    const targetId = customer?.id || selectedCustId;
+    if (!targetId) {
+      alert('Lütfen bir müşteri seçiniz.');
+      return;
+    }
+
+    createOnboardingRequest(targetId, title, description, validItems);
     onClose();
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+        else setMouseDownOnOverlay(false);
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+        setMouseDownOnOverlay(false);
+      }}
+    >
+      <div
+        className="modal-content"
+        style={{ maxWidth: '640px' }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FileCheck size={20} color="var(--primary)" />

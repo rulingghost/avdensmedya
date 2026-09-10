@@ -62,7 +62,7 @@ export default function CommentsView() {
           </div>
           <div>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              Müşteri Geri Bildirim & Yorumlaşma (Madde 15)
+              Müşteri Geri Bildirim & Yorumlaşma
             </h2>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               Müşteri ve ajans arasında revize talepleri, istekler ve anlık yanıtlar

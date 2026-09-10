@@ -19,15 +19,17 @@ import CategoryManagerModal from '../modals/CategoryManagerModal';
 import ImportTemplateModal from '../modals/ImportTemplateModal';
 
 export default function TemplatesView() {
-  const { data, applyTemplateToCustomer, deleteTemplate, currentUser } = useApp();
+  const { data, applyTemplateToCustomer, deleteTemplate, currentUser, getAccessibleCustomers } = useApp();
 
+  const accessibleCustomers = getAccessibleCustomers();
   const [selectedTemplateForApply, setSelectedTemplateForApply] = useState(null);
   const [templateToEdit, setTemplateToEdit] = useState(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [targetCustomerId, setTargetCustomerId] = useState(data.customers[0]?.id || '');
+  const [targetCustomerId, setTargetCustomerId] = useState(accessibleCustomers[0]?.id || '');
   const [successMessage, setSuccessMessage] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   const handleApply = (e) => {
     e.preventDefault();
@@ -35,8 +37,8 @@ export default function TemplatesView() {
 
     applyTemplateToCustomer(targetCustomerId, selectedTemplateForApply.id);
 
-    const customer = data.customers.find(c => c.id === targetCustomerId);
-    setSuccessMessage(`"${selectedTemplateForApply.name}" şablonu ${customer?.companyName} müşterisine başarıyla uygulandı!`);
+    const customer = accessibleCustomers.find(c => c.id === targetCustomerId);
+    setSuccessMessage(`"${selectedTemplateForApply.name}" şablonu ${customer?.companyName || 'Müşteri'} projesine başarıyla uygulandı!`);
     setTimeout(() => setSuccessMessage(''), 4000);
 
     setSelectedTemplateForApply(null);
@@ -243,8 +245,23 @@ export default function TemplatesView() {
 
       {/* Şablonu Uygula Modalı */}
       {selectedTemplateForApply && (
-        <div className="modal-overlay" onClick={() => setSelectedTemplateForApply(null)}>
-          <div className="modal-content" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+            else setMouseDownOnOverlay(false);
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && mouseDownOnOverlay) setSelectedTemplateForApply(null);
+            setMouseDownOnOverlay(false);
+          }}
+        >
+          <div
+            className="modal-content"
+            style={{ maxWidth: '480px' }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Sparkles size={20} color="var(--primary)" />
@@ -267,8 +284,8 @@ export default function TemplatesView() {
                     onChange={(e) => setTargetCustomerId(e.target.value)}
                     required
                   >
-                    {data.customers.map(c => (
-                      <option key={c.id} value={c.id}>{c.companyName} ({c.projectTitle})</option>
+                    {accessibleCustomers.map(c => (
+                      <option key={c.id} value={c.id}>{c.companyName} ({c.projectTitle || 'Proje'})</option>
                     ))}
                   </select>
                 </div>

@@ -10,11 +10,12 @@ export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null
     ? defaultCustomerId
     : (accessibleCustomers[0]?.id || '');
 
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     customerId: initialCustomerId,
-    categoryId: defaultCategoryId || 'cat-meta',
+    categoryId: defaultCategoryId || data.categories[0]?.id || '',
     assignedTo: currentUser.name,
     startDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().split('T')[0],
@@ -35,12 +36,27 @@ export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+        else setMouseDownOnOverlay(false);
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+        setMouseDownOnOverlay(false);
+      }}
+    >
+      <div
+        className="modal-content"
+        style={{ maxWidth: '600px' }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CheckSquare size={20} color="var(--primary)" />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Yeni Görev Ekle (Madde 9)</h3>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Yeni Görev Ekle</h3>
           </div>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }}>
             <X size={20} />
@@ -101,7 +117,7 @@ export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null
               </div>
 
               <div className="form-group">
-                <label>Sorumlu Kişi (Madde 27)</label>
+                <label>Sorumlu Kişi</label>
                 <input
                   type="text"
                   className="form-input"

@@ -32,8 +32,11 @@ export default function DashboardView({ onOpenQuickAction }) {
 
   const [activeSummaryTab, setActiveSummaryTab] = useState('today'); // 'today' | 'overdue' | 'waiting' | 'week' | 'completed'
 
-  const todayStr = '2026-09-08'; // Çalışma zamanı referansı
-  const currentMonthStr = '2026-09';
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const currentMonthStr = todayStr.substring(0, 7);
+  const next7DaysStr = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const currentMonthName = now.toLocaleString('tr-TR', { month: 'long', year: 'numeric' });
 
   // Rol Bazlı Veri İzolasyonu (Aracı yalnızca kendi müşterilerinin verilerini görür)
   const accessibleCustomers = getAccessibleCustomers();
@@ -53,7 +56,7 @@ export default function DashboardView({ onOpenQuickAction }) {
   // Özet Filtreleri
   const todayTasks = relevantTasks.filter(t => !t.isCompleted && (t.dueDate === todayStr || t.startDate === todayStr));
   const waitingForClientTasks = relevantTasks.filter(t => !t.isCompleted && t.waitingForClient);
-  const thisWeekTasks = relevantTasks.filter(t => !t.isCompleted && t.dueDate >= todayStr && t.dueDate <= '2026-09-15');
+  const thisWeekTasks = relevantTasks.filter(t => !t.isCompleted && t.dueDate >= todayStr && t.dueDate <= next7DaysStr);
   const recentCompletedTasks = relevantTasks.filter(t => t.isCompleted).slice(0, 8);
 
   const handleCustomerClick = (customerId) => {
@@ -142,7 +145,7 @@ export default function DashboardView({ onOpenQuickAction }) {
             {totalCustomers}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ color: 'var(--success)', fontWeight: 600 }}>● {data.customers.filter(c => c.status === 'aktif').length} Aktif</span>
+            <span style={{ color: 'var(--success)', fontWeight: 600 }}>● {accessibleCustomers.filter(c => c.status === 'aktif').length} Aktif</span>
             <span>portföyde</span>
           </div>
         </div>
@@ -175,7 +178,7 @@ export default function DashboardView({ onOpenQuickAction }) {
             {completedTasks.length}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--success-text)', fontWeight: 600 }}>
-            Toplam %{Math.round((completedTasks.length / (data.tasks.length || 1)) * 100)} başarı
+            Toplam %{Math.round((completedTasks.length / (relevantTasks.length || 1)) * 100)} başarı
           </div>
         </div>
 
@@ -207,7 +210,7 @@ export default function DashboardView({ onOpenQuickAction }) {
             {thisMonthCompleted.length}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Eylül 2026 performansı
+            {currentMonthName} performansı
           </div>
         </div>
 
@@ -323,11 +326,16 @@ export default function DashboardView({ onOpenQuickAction }) {
                       transition: 'var(--transition)'
                     }}
                   >
-                    {/* Checkbox (Madde 7) */}
+                    {/* Checkbox */}
                     <div
                       className={`custom-checkbox ${task.isCompleted ? 'checked' : ''}`}
-                      onClick={() => toggleTask(task.id)}
-                      title={task.isCompleted ? 'Görevi tekrar aç' : 'Görevi tamamlandı olarak işaretle'}
+                      onClick={() => {
+                        if (currentUser.role !== 'musteri') {
+                          toggleTask(task.id);
+                        }
+                      }}
+                      style={{ cursor: currentUser.role === 'musteri' ? 'default' : 'pointer' }}
+                      title={currentUser.role === 'musteri' ? 'Görev Durumu' : task.isCompleted ? 'Görevi tekrar aç' : 'Görevi tamamlandı olarak işaretle'}
                     >
                       {task.isCompleted && <Check size={14} strokeWidth={3} />}
                     </div>

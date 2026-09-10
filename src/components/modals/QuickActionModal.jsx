@@ -12,11 +12,13 @@ export default function QuickActionModal({ isOpen, onClose }) {
 
   const [activeTab, setActiveTab] = useState('task'); // 'task' | 'customer' | 'note' | 'user'
 
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
+
   // Görev formu
   const [taskForm, setTaskForm] = useState({
     title: '',
     customerId: defaultCustId,
-    categoryId: 'cat-meta',
+    categoryId: data.categories[0]?.id || 'cat-meta',
     priority: 'normal',
     dueDate: new Date().toISOString().split('T')[0],
     assignedTo: currentUser.name,
@@ -30,8 +32,8 @@ export default function QuickActionModal({ isOpen, onClose }) {
     contactPerson: '',
     phone: '',
     email: '',
-    partnerId: 'user-araci',
-    applyTemplate: 'tmpl-sosyal-medya'
+    partnerId: data.users.find(u => u.role === 'araci')?.id || data.users[0]?.id || '',
+    applyTemplate: data.templates[0]?.id || ''
   });
 
   // Not formu
@@ -87,8 +89,22 @@ export default function QuickActionModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+        else setMouseDownOnOverlay(false);
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+        setMouseDownOnOverlay(false);
+      }}
+    >
+      <div
+        className="modal-content"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sparkles size={20} color="var(--primary)" />

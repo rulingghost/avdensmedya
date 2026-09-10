@@ -261,11 +261,24 @@ export default function ImportTemplateModal({ isOpen, onClose }) {
     onClose();
   };
 
+  const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) setMouseDownOnOverlay(true);
+        else setMouseDownOnOverlay(false);
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlay) onClose();
+        setMouseDownOnOverlay(false);
+      }}
+    >
       <div
         className="modal-content"
         style={{ maxWidth: '800px', width: '95%' }}
+        onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Başlığı */}

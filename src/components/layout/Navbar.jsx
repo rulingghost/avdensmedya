@@ -224,16 +224,16 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
               top: 'calc(100% + 8px)',
               right: 0,
               width: '240px',
-              background: 'var(--card-bg, #1e293b)',
+              background: '#ffffff',
               border: '1px solid var(--border-color)',
               borderRadius: '12px',
-              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.35)',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.12)',
               zIndex: 100,
               overflow: 'hidden',
               animation: 'fadeIn 0.15s ease'
             }}>
               {/* Popover Üst Kullanıcı Kartı */}
-              <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color)', background: 'rgba(15, 23, 42, 0.4)' }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color)', background: '#f8fafc' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>
                   {currentUser.name}
                 </div>
@@ -247,8 +247,9 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
                     borderRadius: '6px',
                     fontSize: '0.7rem',
                     fontWeight: 600,
-                    background: currentUser.role === 'admin' ? 'rgba(56, 189, 248, 0.15)' : currentUser.role === 'araci' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                    color: currentUser.role === 'admin' ? '#38bdf8' : currentUser.role === 'araci' ? '#10b981' : '#f59e0b'
+                    background: currentUser.role === 'admin' ? '#eff6ff' : currentUser.role === 'araci' ? '#ecfdf5' : '#fffbeb',
+                    color: currentUser.role === 'admin' ? '#1d4ed8' : currentUser.role === 'araci' ? '#047857' : '#b45309',
+                    border: `1px solid ${currentUser.role === 'admin' ? '#bfdbfe' : currentUser.role === 'araci' ? '#a7f3d0' : '#fde68a'}`
                   }}>
                     {currentUser.role === 'admin' ? '👑 Yönetici' : currentUser.role === 'araci' ? '🤝 İş Ortağı' : '🏢 Müşteri'}
                   </span>
@@ -277,10 +278,10 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
                     textAlign: 'left',
                     transition: 'background 0.15s'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <UserCog size={16} color="#38bdf8" />
+                  <UserCog size={16} color="var(--primary)" />
                   <span style={{ fontWeight: 500 }}>Profili Düzenle</span>
                 </button>
 
@@ -297,17 +298,17 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
                     borderRadius: '8px',
                     background: 'transparent',
                     border: 'none',
-                    color: '#ef4444',
+                    color: 'var(--danger)',
                     fontSize: '0.85rem',
                     cursor: 'pointer',
                     textAlign: 'left',
                     transition: 'background 0.15s'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <LogOut size={16} color="#ef4444" />
-                  <span style={{ fontWeight: 600 }}>Çıkış Yap</span>
+                  <LogOut size={16} />
+                  <span style={{ fontWeight: 500 }}>Güvenli Çıkış</span>
                 </button>
               </div>
             </div>

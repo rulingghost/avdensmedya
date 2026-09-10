@@ -251,15 +251,21 @@ export default function TasksView() {
                       }}
                       onClick={() => setSelectedTaskForDetail(task)}
                     >
-                      {/* Checkbox (Madde 7) */}
+                      {/* Checkbox */}
                       <div
                         className={`custom-checkbox ${task.isCompleted ? 'checked' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleTask(task.id);
+                          if (currentUser.role !== 'musteri') {
+                            toggleTask(task.id);
+                          }
                         }}
-                        style={{ marginTop: '2px' }}
-                        title="Tamamlandı olarak işaretle / aç"
+                        style={{
+                          marginTop: '2px',
+                          cursor: currentUser.role === 'musteri' ? 'default' : 'pointer',
+                          opacity: currentUser.role === 'musteri' ? 0.85 : 1
+                        }}
+                        title={currentUser.role === 'musteri' ? 'Görev Durumu' : 'Tamamlandı olarak işaretle / aç'}
                       >
                         {task.isCompleted && <Check size={14} strokeWidth={3} />}
                       </div>

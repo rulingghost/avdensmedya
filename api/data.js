@@ -375,6 +375,44 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true });
         }
 
+        // --- Kategoriler ---
+        case 'insertCategory': {
+          const cat = payload;
+          await sql`
+            INSERT INTO categories (id, name, color, icon)
+            VALUES (${cat.id}, ${cat.name}, ${cat.color || '#3B82F6'}, ${cat.icon || 'Folder'})
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              color = EXCLUDED.color,
+              icon = EXCLUDED.icon;
+          `;
+          return res.status(200).json({ success: true });
+        }
+
+        case 'updateCategory': {
+          const { id, updates } = payload;
+          if (updates.name) await sql`UPDATE categories SET name = ${updates.name} WHERE id = ${id};`;
+          if (updates.color) await sql`UPDATE categories SET color = ${updates.color} WHERE id = ${id};`;
+          if (updates.icon) await sql`UPDATE categories SET icon = ${updates.icon} WHERE id = ${id};`;
+          return res.status(200).json({ success: true });
+        }
+
+        case 'deleteCategory': {
+          await sql`DELETE FROM categories WHERE id = ${payload.id};`;
+          return res.status(200).json({ success: true });
+        }
+
+        // --- Onboarding Talepleri ---
+        case 'insertOnboardingRequest': {
+          const reqItem = payload;
+          await sql`
+            INSERT INTO onboarding_requests (id, "customerId", "customerName", title, description, status, items, "completedAt")
+            VALUES (${reqItem.id}, ${reqItem.customerId}, ${reqItem.customerName || 'Müşteri'}, ${reqItem.title}, ${reqItem.description || ''}, ${reqItem.status || 'pending'}, ${JSON.stringify(reqItem.items || [])}::jsonb, ${reqItem.completedAt || null})
+            ON CONFLICT (id) DO NOTHING;
+          `;
+          return res.status(200).json({ success: true });
+        }
+
         case 'updateOnboardingRequest': {
           const { id, updates } = payload;
           await sql`
