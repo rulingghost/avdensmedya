@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import {
   INITIAL_USERS,
@@ -14,13 +14,42 @@ import {
   INITIAL_TEMPLATES,
   INITIAL_ONBOARDING_REQUESTS
 } from '../data/initialData';
+import {
+  fetchAllData,
+  seedDatabase,
+  dbInsertTask,
+  dbUpdateTask,
+  dbDeleteTask,
+  dbInsertCustomer,
+  dbUpdateCustomer,
+  dbDeleteCustomer,
+  dbInsertCredential,
+  dbUpdateCredential,
+  dbDeleteCredential,
+  dbInsertNote,
+  dbDeleteNote,
+  dbInsertFile,
+  dbDeleteFile,
+  dbInsertComment,
+  dbUpdateComment,
+  dbInsertActivity,
+  dbInsertNotification,
+  dbMarkNotificationRead,
+  dbMarkAllNotificationsRead,
+  dbInsertTemplate,
+  dbUpdateTemplate,
+  dbDeleteTemplate,
+  dbUpdateUser,
+  dbUpdateOnboardingRequest,
+  subscribeToRealtimeChanges
+} from '../services/dbService';
 
 const AppContext = createContext();
 
 const STORAGE_KEY = 'AVDENS_WORK_STORAGE_V3';
 
 export function AppProvider({ children }) {
-  // LocalStorage senkronizasyonu
+  // İlk veri durumu
   const [data, setData] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -46,7 +75,13 @@ export function AppProvider({ children }) {
     };
   });
 
-  // Oturum durumu (Madde 1)
+  // Veritabanı bağlantı ve senkronizasyon durumları
+  // 'connecting' | 'connected' | 'empty_needs_seed' | 'missing_tables' | 'unconfigured' | 'error'
+  const [dbStatus, setDbStatus] = useState('connecting');
+  const [dbError, setDbError] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Oturum durumu
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     try {
       const savedAuth = localStorage.getItem('AVDENS_WORK_LOGGED_IN');
@@ -89,22 +124,93 @@ export function AppProvider({ children }) {
   const [selectedCustomerId, setSelectedCustomerId] = useState('cust-omtek');
 
   // Aktif sayfa/sekme navigasyonu
-  const [activePage, setActivePage] = useState('dashboard'); // 'dashboard' | 'customers' | 'customer-detail' | 'tasks' | 'templates' | 'activities' | 'settings'
+  const [activePage, setActivePage] = useState('dashboard');
 
   // Global arama sorgusu
   const [searchQuery, setSearchQuery] = useState('');
 
-  // LocalStorage'a kaydetme
-  useEffect(() => {
+  // -------------------------------------------------------------
+  // VERİTABANINDAN VERİLERİ YÜKLE
+  // -------------------------------------------------------------
+  const loadDataFromDb = useCallback(async () => {
+    setIsSyncing(true);
+    setDbError(null);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch (e) {
-      console.error('LocalStorage kaydedilemedi:', e);
-    }
-  }, [data]);
+      const result = await fetchAllData();
+      setIsSyncing(false);
 
-  // Giriş Yap (Madde 1)
-  // Giriş Yap (Prodüksiyon Doğrulaması)
+      if (!result.isConfigured) {
+        setDbStatus('unconfigured');
+        return;
+      }
+
+      if (!result.success) {
+        if (result.tableMissing) {
+          setDbStatus('missing_tables');
+        } else {
+          setDbStatus('error');
+          setDbError(result.error);
+        }
+        return;
+      }
+
+      if (result.isEmpty) {
+        setDbStatus('empty_needs_seed');
+      } else {
+        setData(result.data);
+        setDbStatus('connected');
+      }
+    } catch (err) {
+      setIsSyncing(false);
+      setDbStatus('error');
+      setDbError(err.message);
+    }
+  }, []);
+
+  // İlk açılışta veritabanını sorgula ve Realtime dinleyiciyi kur
+  useEffect(() => {
+    loadDataFromDb();
+
+    // Realtime websocket dinleyicisi
+    const unsubscribe = subscribeToRealtimeChanges((payload) => {
+      console.log('Realtime veritabanı güncellemesi:', payload);
+      // Başka cihaz veya kullanıcıdan gelen değişikliği al
+      loadDataFromDb();
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [loadDataFromDb]);
+
+  // Eğer veritabanı henüz yapılandırılmadıysa geçici yerel yedek tut (veri kaybını önleme)
+  useEffect(() => {
+    if (dbStatus === 'unconfigured') {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {}
+    }
+  }, [data, dbStatus]);
+
+  // Veritabanına ilk başlangıç verilerini aktar (Seed)
+  const seedDatabaseToCloud = async (customData = null) => {
+    setIsSyncing(true);
+    try {
+      await seedDatabase(customData || data);
+      await loadDataFromDb();
+      setDbStatus('connected');
+      return { success: true };
+    } catch (err) {
+      console.error('Seed başarısız:', err);
+      return { success: false, error: err.message };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // OTURUM YÖNETİMİ
+  // -------------------------------------------------------------
   const login = (email, password) => {
     if (!email || !password) {
       return { success: false, message: 'Lütfen e-posta adresinizi ve şifrenizi giriniz.' };
@@ -140,7 +246,6 @@ export function AppProvider({ children }) {
     return { success: true, user };
   };
 
-  // Çıkış Yap (Madde 1)
   const logout = () => {
     setIsLoggedIn(false);
     try {
@@ -151,9 +256,8 @@ export function AppProvider({ children }) {
     setActivePage('dashboard');
   };
 
-  // Profil Düzenle (Yetki & Güvenlik Denetimli)
-  const updateUserProfile = (updatedFields) => {
-    // Güvenlik: Kullanıcı kendi rolünü veya müşteri bağlantısını değiştiremez
+  // Profil Düzenle
+  const updateUserProfile = async (updatedFields) => {
     const safeFields = { ...updatedFields };
     delete safeFields.role;
     delete safeFields.customerId;
@@ -167,17 +271,18 @@ export function AppProvider({ children }) {
     setData(prev => ({
       ...prev,
       users: prev.users.map(u => u.id === updatedUser.id ? updatedUser : u),
-      // Eğer aracı ismi değiştiyse bağlı müşterilerdeki partnerName de güncellensin
       customers: updatedUser.role === 'araci'
         ? prev.customers.map(c => c.partnerId === updatedUser.id ? { ...c, partnerName: updatedUser.name } : c)
         : prev.customers
     }));
+
+    // Veritabanına yaz
+    await dbUpdateUser(updatedUser.id, safeFields);
     logActivity('global', `${updatedUser.name} profil bilgilerini güncelledi.`);
     return true;
   };
 
-
-  // Aktivite ekleme yardımcısı
+  // Aktivite Ekleme
   const logActivity = (customerId, actionText, type = 'general') => {
     const customer = data.customers.find(c => c.id === customerId);
     const newAct = {
@@ -193,9 +298,11 @@ export function AppProvider({ children }) {
       ...prev,
       activities: [newAct, ...prev.activities]
     }));
+    // Arka planda veritabanına yaz
+    dbInsertActivity(newAct).catch(console.error);
   };
 
-  // Bildirim ekleme
+  // Bildirim Ekleme
   const addNotification = (title, message, linkCustomerId = null) => {
     const newNotif = {
       id: 'notif-' + Date.now(),
@@ -209,17 +316,19 @@ export function AppProvider({ children }) {
       ...prev,
       notifications: [newNotif, ...prev.notifications]
     }));
+    // Arka planda veritabanına yaz
+    dbInsertNotification(newNotif).catch(console.error);
   };
 
-  // Görev Tikleme / Tamamlama (Yetki Denetimli)
+  // -------------------------------------------------------------
+  // GÖREV İŞLEMLERİ
+  // -------------------------------------------------------------
   const toggleTask = (taskId) => {
-    // Müşteriler doğrudan ajans içi görevleri tikleyemez/kapatamaz
     if (currentUser.role === 'musteri') return;
 
     const task = data.tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    // Aracı yalnızca kendi müşterisinin görevini tikleyebilir
     if (currentUser.role === 'araci') {
       const isMine = data.customers.some(c => c.id === task.customerId && (c.partnerId === currentUser.id || c.partnerName?.includes(currentUser.name)));
       if (!isMine) return;
@@ -228,25 +337,21 @@ export function AppProvider({ children }) {
     const willBeCompleted = !task.isCompleted;
     const now = new Date().toISOString();
 
-    setData(prev => {
-      const updatedTasks = prev.tasks.map(t => {
-        if (t.id === taskId) {
-          return {
-            ...t,
-            isCompleted: willBeCompleted,
-            status: willBeCompleted ? 'tamamlandi' : 'devam_ediyor',
-            completedAt: willBeCompleted ? now : null,
-            completedBy: willBeCompleted ? currentUser.name : null
-          };
-        }
-        return t;
-      });
+    const updates = {
+      isCompleted: willBeCompleted,
+      status: willBeCompleted ? 'tamamlandi' : 'devam_ediyor',
+      completedAt: willBeCompleted ? now : null,
+      completedBy: willBeCompleted ? currentUser.name : null
+    };
 
-      return {
-        ...prev,
-        tasks: updatedTasks
-      };
-    });
+    // Optimistic UI güncellemesi
+    setData(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t => (t.id === taskId ? { ...t, ...updates } : t))
+    }));
+
+    // Veritabanına kaydet
+    dbUpdateTask(taskId, updates).catch(console.error);
 
     if (willBeCompleted) {
       try {
@@ -277,7 +382,6 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Yeni Görev Ekle (Yetki Denetimli)
   const addTask = (taskData) => {
     if (currentUser.role === 'musteri') return null;
 
@@ -306,10 +410,14 @@ export function AppProvider({ children }) {
       waitingReason: taskData.waitingReason || ''
     };
 
+    // Optimistic UI güncellemesi
     setData(prev => ({
       ...prev,
       tasks: [newTask, ...prev.tasks]
     }));
+
+    // Veritabanına kaydet
+    dbInsertTask(newTask).catch(console.error);
 
     logActivity(
       newTask.customerId,
@@ -325,7 +433,6 @@ export function AppProvider({ children }) {
     return newTask.id;
   };
 
-  // Görev Düzenle (Yetki Denetimli)
   const updateTask = (taskId, updatedFields) => {
     if (currentUser.role === 'musteri') return;
     const task = data.tasks.find(t => t.id === taskId);
@@ -336,13 +443,16 @@ export function AppProvider({ children }) {
       if (!isMine) return;
     }
 
+    // Optimistic UI
     setData(prev => ({
       ...prev,
       tasks: prev.tasks.map(t => (t.id === taskId ? { ...t, ...updatedFields } : t))
     }));
+
+    // Veritabanına kaydet
+    dbUpdateTask(taskId, updatedFields).catch(console.error);
   };
 
-  // Görev Sil (Yetki Denetimli)
   const deleteTask = (taskId) => {
     if (currentUser.role === 'musteri') return;
     const task = data.tasks.find(t => t.id === taskId);
@@ -357,15 +467,19 @@ export function AppProvider({ children }) {
       ...prev,
       tasks: prev.tasks.filter(t => t.id !== taskId)
     }));
+
+    // Veritabanından sil
+    dbDeleteTask(taskId).catch(console.error);
     logActivity(task.customerId, `${currentUser.name} görevi sildi: "${task.title}"`);
   };
 
-  // Yeni Müşteri Ekle (Yetki Denetimli)
+  // -------------------------------------------------------------
+  // MÜŞTERİ İŞLEMLERİ
+  // -------------------------------------------------------------
   const addCustomer = (customerData, applyTemplateId = null) => {
     if (currentUser.role === 'musteri') return null;
 
     const newId = 'cust-' + Date.now();
-    // Aracı yeni müşteri eklerse doğrudan kendisine bağlanır
     const assignedPartnerId = currentUser.role === 'araci' ? currentUser.id : customerData.partnerId;
     const partner = data.users.find(u => u.id === assignedPartnerId);
 
@@ -413,11 +527,16 @@ export function AppProvider({ children }) {
       }
     }
 
+    // Optimistic UI
     setData(prev => ({
       ...prev,
       customers: [newCustomer, ...prev.customers],
       tasks: [...templateTasks, ...prev.tasks]
     }));
+
+    // Veritabanına kaydet
+    dbInsertCustomer(newCustomer).catch(console.error);
+    templateTasks.forEach(t => dbInsertTask(t).catch(console.error));
 
     logActivity(newId, `${currentUser.name} yeni müşteri oluşturdu: ${newCustomer.companyName}`, 'customer_created');
     addNotification('Yeni Müşteri Eklendi', `${newCustomer.companyName} başarıyla sisteme kaydedildi.`, newId);
@@ -425,13 +544,11 @@ export function AppProvider({ children }) {
     return newId;
   };
 
-  // Müşteri Güncelle (Yetki Denetimli)
   const updateCustomer = (customerId, updatedFields) => {
     if (currentUser.role === 'musteri') return;
     if (currentUser.role === 'araci') {
       const isMine = data.customers.some(c => c.id === customerId && (c.partnerId === currentUser.id || c.partnerName?.includes(currentUser.name)));
       if (!isMine) return;
-      // Aracı başka aracıya devredemez
       const safeFields = { ...updatedFields };
       delete safeFields.partnerId;
       delete safeFields.partnerName;
@@ -439,6 +556,7 @@ export function AppProvider({ children }) {
         ...prev,
         customers: prev.customers.map(c => (c.id === customerId ? { ...c, ...safeFields } : c))
       }));
+      dbUpdateCustomer(customerId, safeFields).catch(console.error);
       logActivity(customerId, `${currentUser.name} müşteri bilgilerini güncelledi.`);
       return;
     }
@@ -447,10 +565,13 @@ export function AppProvider({ children }) {
       ...prev,
       customers: prev.customers.map(c => (c.id === customerId ? { ...c, ...updatedFields } : c))
     }));
+    dbUpdateCustomer(customerId, updatedFields).catch(console.error);
     logActivity(customerId, `${currentUser.name} müşteri bilgilerini güncelledi.`);
   };
 
-  // Not Ekle (Yetki Denetimli)
+  // -------------------------------------------------------------
+  // NOT İŞLEMLERİ
+  // -------------------------------------------------------------
   const addNote = (customerId, content, color = 'blue') => {
     const isAccessible = getAccessibleCustomers().some(c => c.id === customerId);
     if (!isAccessible) return;
@@ -459,25 +580,26 @@ export function AppProvider({ children }) {
       id: 'note-' + Date.now(),
       customerId,
       authorName: currentUser.name,
-      authorRole: currentUser.role === 'admin' ? 'Admin' : currentUser.role === 'araci' ? 'Aracı' : 'Müşteri',
+      authorRole: currentUser.role === 'admin' ? 'Admin' : (currentUser.role === 'araci' ? 'Aracı' : 'Müşteri'),
       authorAvatar: currentUser.avatar,
       content,
       color,
       createdAt: new Date().toISOString()
     };
+
     setData(prev => ({
       ...prev,
       notes: [newNote, ...prev.notes]
     }));
-    logActivity(customerId, `${currentUser.name} yeni bir not ekledi.`);
+
+    dbInsertNote(newNote).catch(console.error);
+    logActivity(customerId, `${currentUser.name} yeni not ekledi.`);
   };
 
-  // Not Sil (Yetki Denetimli)
   const deleteNote = (noteId) => {
     const note = data.notes.find(n => n.id === noteId);
     if (!note) return;
 
-    // Müşteri yalnızca kendi notunu silebilir; Aracı yalnızca kendi erişebildiği müşterinin notunu silebilir
     if (currentUser.role === 'musteri' && note.authorName !== currentUser.name) return;
     if (currentUser.role === 'araci') {
       const isAccessible = getAccessibleCustomers().some(c => c.id === note.customerId);
@@ -488,9 +610,13 @@ export function AppProvider({ children }) {
       ...prev,
       notes: prev.notes.filter(n => n.id !== noteId)
     }));
+
+    dbDeleteNote(noteId).catch(console.error);
   };
 
-  // Hesap Bilgisi Ekle (Yetki Denetimli)
+  // -------------------------------------------------------------
+  // ŞİFRE KASASI (CREDENTIALS)
+  // -------------------------------------------------------------
   const addCredential = (customerId, credData) => {
     if (currentUser.role === 'musteri') return;
     const isAccessible = getAccessibleCustomers().some(c => c.id === customerId);
@@ -507,14 +633,16 @@ export function AppProvider({ children }) {
       fields: credData.fields || [],
       updatedAt: new Date().toISOString().split('T')[0]
     };
+
     setData(prev => ({
       ...prev,
       credentials: [...prev.credentials, newCred]
     }));
+
+    dbInsertCredential(newCred).catch(console.error);
     logActivity(customerId, `${currentUser.name} "${newCred.serviceType}" hesap bilgisi ekledi.`, 'credential');
   };
 
-  // Hesap Bilgisi Güncelle (Yetki Denetimli)
   const updateCredential = (credId, updatedFields) => {
     if (currentUser.role === 'musteri') return;
     const cred = data.credentials.find(c => c.id === credId);
@@ -522,13 +650,19 @@ export function AppProvider({ children }) {
     const isAccessible = getAccessibleCustomers().some(c => c.id === cred.customerId);
     if (!isAccessible) return;
 
+    const updates = {
+      ...updatedFields,
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+
     setData(prev => ({
       ...prev,
-      credentials: prev.credentials.map(c => c.id === credId ? { ...c, ...updatedFields, updatedAt: new Date().toISOString().split('T')[0] } : c)
+      credentials: prev.credentials.map(c => c.id === credId ? { ...c, ...updates } : c)
     }));
+
+    dbUpdateCredential(credId, updates).catch(console.error);
   };
 
-  // Hesap Bilgisi Sil (Yetki Denetimli)
   const deleteCredential = (credId) => {
     if (currentUser.role === 'musteri') return;
     const cred = data.credentials.find(c => c.id === credId);
@@ -540,9 +674,13 @@ export function AppProvider({ children }) {
       ...prev,
       credentials: prev.credentials.filter(c => c.id !== credId)
     }));
+
+    dbDeleteCredential(credId).catch(console.error);
   };
 
-  // Dosya Yükle (Yetki Denetimli)
+  // -------------------------------------------------------------
+  // DOSYA İŞLEMLERİ
+  // -------------------------------------------------------------
   const addFile = (customerId, fileData) => {
     const isAccessible = getAccessibleCustomers().some(c => c.id === customerId);
     if (!isAccessible) return;
@@ -558,14 +696,16 @@ export function AppProvider({ children }) {
       uploadedBy: currentUser.name,
       uploadedAt: new Date().toISOString()
     };
+
     setData(prev => ({
       ...prev,
       files: [newFile, ...prev.files]
     }));
+
+    dbInsertFile(newFile).catch(console.error);
     logActivity(customerId, `${currentUser.name} yeni dosya yükledi: ${newFile.name}`);
   };
 
-  // Dosya Sil (Yetki Denetimli)
   const deleteFile = (fileId) => {
     const file = data.files.find(f => f.id === fileId);
     if (!file) return;
@@ -580,9 +720,13 @@ export function AppProvider({ children }) {
       ...prev,
       files: prev.files.filter(f => f.id !== fileId)
     }));
+
+    dbDeleteFile(fileId).catch(console.error);
   };
 
-  // Müşteri Yorumu Ekle (Yetki Denetimli)
+  // -------------------------------------------------------------
+  // YORUM İŞLEMLERİ
+  // -------------------------------------------------------------
   const addComment = (customerId, message) => {
     const isAccessible = getAccessibleCustomers().some(c => c.id === customerId);
     if (!isAccessible) return;
@@ -597,15 +741,17 @@ export function AppProvider({ children }) {
       createdAt: new Date().toISOString(),
       reply: null
     };
+
     setData(prev => ({
       ...prev,
       comments: [newComment, ...prev.comments]
     }));
+
+    dbInsertComment(newComment).catch(console.error);
     logActivity(customerId, `${currentUser.name} yeni bir geri bildirim yorumu ekledi.`, 'comment');
     addNotification('Yeni Yorum', `${currentUser.name}: "${message.slice(0, 40)}..."`, customerId);
   };
 
-  // Yorum Cevapla (Yalnızca Admin ve Atanmış Aracı)
   const replyComment = (commentId, replyMessage) => {
     if (currentUser.role === 'musteri') return;
     const comment = data.comments.find(c => c.id === commentId);
@@ -613,43 +759,44 @@ export function AppProvider({ children }) {
     const isAccessible = getAccessibleCustomers().some(c => c.id === comment.customerId);
     if (!isAccessible) return;
 
+    const replyData = {
+      userName: currentUser.name,
+      userRole: currentUser.role,
+      userAvatar: currentUser.avatar,
+      message: replyMessage,
+      createdAt: new Date().toISOString()
+    };
+
     setData(prev => ({
       ...prev,
-      comments: prev.comments.map(c => {
-        if (c.id === commentId) {
-          return {
-            ...c,
-            reply: {
-              userName: currentUser.name,
-              userRole: currentUser.role,
-              userAvatar: currentUser.avatar,
-              message: replyMessage,
-              createdAt: new Date().toISOString()
-            }
-          };
-        }
-        return c;
-      })
+      comments: prev.comments.map(c => c.id === commentId ? { ...c, reply: replyData } : c)
     }));
+
+    dbUpdateComment(commentId, { reply: replyData }).catch(console.error);
   };
 
-  // Bildirim Okundu İşaretle
+  // -------------------------------------------------------------
+  // BİLDİRİM İŞLEMLERİ
+  // -------------------------------------------------------------
   const markNotificationRead = (notifId) => {
     setData(prev => ({
       ...prev,
       notifications: prev.notifications.map(n => n.id === notifId ? { ...n, read: true } : n)
     }));
+    dbMarkNotificationRead(notifId).catch(console.error);
   };
 
-  // Tüm Bildirimleri Oku
   const markAllNotificationsRead = () => {
     setData(prev => ({
       ...prev,
       notifications: prev.notifications.map(n => ({ ...n, read: true }))
     }));
+    dbMarkAllNotificationsRead().catch(console.error);
   };
 
-  // Şablonu Müşteriye Uygula (Yetki Denetimli)
+  // -------------------------------------------------------------
+  // ŞABLON İŞLEMLERİ
+  // -------------------------------------------------------------
   const applyTemplateToCustomer = (customerId, templateId) => {
     if (currentUser.role === 'musteri') return;
     const isAccessible = getAccessibleCustomers().some(c => c.id === customerId);
@@ -682,11 +829,11 @@ export function AppProvider({ children }) {
       tasks: [...newTasks, ...prev.tasks]
     }));
 
+    newTasks.forEach(t => dbInsertTask(t).catch(console.error));
     logActivity(customerId, `${currentUser.name} "${template.name}" şablonunu projeye uyguladı (${newTasks.length} görev).`);
     addNotification('Şablon Uygulandı', `${newTasks.length} adet görev projeye dahil edildi.`, customerId);
   };
 
-  // Yeni Şablon Oluştur (Yalnızca Admin)
   const addTemplate = (templateData) => {
     if (currentUser.role !== 'admin') return;
     const newTemplate = {
@@ -699,21 +846,21 @@ export function AppProvider({ children }) {
       ...prev,
       templates: [newTemplate, ...prev.templates]
     }));
+    dbInsertTemplate(newTemplate).catch(console.error);
     logActivity('global', `${currentUser.name} yeni görev şablonu oluşturdu: "${newTemplate.name}"`);
     addNotification('Yeni Şablon Eklendi', `"${newTemplate.name}" şablonu kullanıma hazır.`);
   };
 
-  // Şablon Düzenle (Yalnızca Admin)
   const updateTemplate = (templateId, updatedData) => {
     if (currentUser.role !== 'admin') return;
     setData(prev => ({
       ...prev,
       templates: prev.templates.map(t => t.id === templateId ? { ...t, ...updatedData } : t)
     }));
+    dbUpdateTemplate(templateId, updatedData).catch(console.error);
     logActivity('global', `${currentUser.name} "${updatedData.name}" şablonunu güncelledi.`);
   };
 
-  // Şablon Sil (Yalnızca Admin)
   const deleteTemplate = (templateId) => {
     if (currentUser.role !== 'admin') return;
     const tmpl = data.templates.find(t => t.id === templateId);
@@ -721,12 +868,15 @@ export function AppProvider({ children }) {
       ...prev,
       templates: prev.templates.filter(t => t.id !== templateId)
     }));
+    dbDeleteTemplate(templateId).catch(console.error);
     if (tmpl) {
       logActivity('global', `${currentUser.name} "${tmpl.name}" görev şablonunu sildi.`);
     }
   };
 
-  // Kategori Ekle (Yalnızca Admin)
+  // -------------------------------------------------------------
+  // KATEGORİ İŞLEMLERİ
+  // -------------------------------------------------------------
   const addCategory = (catData) => {
     if (currentUser.role !== 'admin') return;
     const newCat = {
@@ -743,7 +893,6 @@ export function AppProvider({ children }) {
     return newCat.id;
   };
 
-  // Kategori Güncelle (Yalnızca Admin)
   const updateCategory = (catId, updatedData) => {
     if (currentUser.role !== 'admin') return;
     setData(prev => ({
@@ -753,7 +902,6 @@ export function AppProvider({ children }) {
     logActivity('global', `${currentUser.name} kategori güncelledi: "${updatedData.name}"`);
   };
 
-  // Kategori Sil (Yalnızca Admin)
   const deleteCategory = (catId) => {
     if (currentUser.role !== 'admin') return;
     const cat = data.categories.find(c => c.id === catId);
@@ -766,9 +914,10 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Müşterinin Beklenen Göreve Yanıt ve Dosya Göndermesi (Yetki Denetimli)
+  // -------------------------------------------------------------
+  // MÜŞTERİ YANIT VE ONBOARDING İŞLEMLERİ
+  // -------------------------------------------------------------
   const submitWaitingTaskResponse = (taskId, customerId, noteText, fileData = null) => {
-    // Katı Güvenlik: Müşteri yalnızca kendi firmasına yanıt verebilir
     if (currentUser.role === 'musteri' && currentUser.customerId && customerId !== currentUser.customerId) {
       return;
     }
@@ -783,7 +932,7 @@ export function AppProvider({ children }) {
     let newFiles = [];
     if (fileData && fileData.name) {
       attachedFileName = fileData.name;
-      newFiles.push({
+      const newFile = {
         id: 'file-' + Date.now(),
         customerId,
         name: fileData.name,
@@ -793,12 +942,14 @@ export function AppProvider({ children }) {
         description: `Müşteri yanıtı ("${task?.title}")`,
         uploadedBy: currentUser.name,
         uploadedAt: new Date().toISOString()
-      });
+      };
+      newFiles.push(newFile);
+      dbInsertFile(newFile).catch(console.error);
     }
 
     let newNotes = [];
     if (noteText && noteText.trim()) {
-      newNotes.push({
+      const newNote = {
         id: 'note-' + Date.now(),
         customerId,
         authorName: currentUser.name,
@@ -807,25 +958,25 @@ export function AppProvider({ children }) {
         content: `[Görev Yanıtı - ${task?.title}]: ${noteText}${attachedFileName ? ` (Ekli Dosya: ${attachedFileName})` : ''}`,
         color: 'emerald',
         createdAt: new Date().toISOString()
-      });
+      };
+      newNotes.push(newNote);
+      dbInsertNote(newNote).catch(console.error);
     }
+
+    const taskUpdates = {
+      waitingForClient: false,
+      waitingReason: '',
+      status: 'devam_ediyor'
+    };
 
     setData(prev => ({
       ...prev,
-      tasks: prev.tasks.map(t => {
-        if (t.id === taskId) {
-          return {
-            ...t,
-            waitingForClient: false,
-            waitingReason: '',
-            status: 'devam_ediyor'
-          };
-        }
-        return t;
-      }),
+      tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...taskUpdates } : t),
       files: [...newFiles, ...prev.files],
       notes: [...newNotes, ...prev.notes]
     }));
+
+    dbUpdateTask(taskId, taskUpdates).catch(console.error);
 
     try {
       confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
@@ -839,64 +990,25 @@ export function AppProvider({ children }) {
     );
   };
 
-  // Tüm Verileri Sıfırla (Yalnızca Admin)
-  const clearAllData = () => {
-    if (currentUser.role !== 'admin') return;
-    setData(prev => ({
-      users: INITIAL_USERS,
-      customers: [],
-      categories: prev.categories,
-      tasks: [],
-      credentials: [],
-      notes: [],
-      files: [],
-      comments: [],
-      activities: [{
-        id: 'act-init',
-        customerId: null,
-        customerName: 'Sistem',
-        userName: currentUser.name,
-        actionText: 'Tüm sistem veritabanı sıfırlandı. Temiz çalışma alanı hazırlandı.',
-        type: 'system',
-        createdAt: new Date().toISOString()
-      }],
-      notifications: [{
-        id: 'notif-cleared',
-        title: 'Veritabanı Sıfırlandı',
-        message: 'Tüm müşteri ve görev kayıtları başarıyla temizlendi.',
-        read: false,
-        createdAt: new Date().toISOString(),
-        linkCustomerId: null
-      }],
-      templates: prev.templates,
-      onboardingRequests: []
-    }));
-    logActivity('global', `${currentUser.name} tüm sistem verilerini sıfırladı.`);
-  };
-
-  // Admin Panelinden Aracıya Müşteri Atama (Yalnızca Admin)
   const assignPartnerToCustomer = (customerId, partnerId) => {
     if (currentUser.role !== 'admin') return;
     const partner = data.users.find(u => u.id === partnerId);
+    const updates = {
+      partnerId: partner ? partner.id : null,
+      partnerName: partner ? partner.name : 'Atanmamış'
+    };
+
     setData(prev => ({
       ...prev,
-      customers: prev.customers.map(c => {
-        if (c.id === customerId) {
-          return {
-            ...c,
-            partnerId: partner ? partner.id : null,
-            partnerName: partner ? partner.name : 'Atanmamış'
-          };
-        }
-        return c;
-      })
+      customers: prev.customers.map(c => c.id === customerId ? { ...c, ...updates } : c)
     }));
+
+    dbUpdateCustomer(customerId, updates).catch(console.error);
     const customer = data.customers.find(c => c.id === customerId);
     logActivity(customerId, `${customer?.companyName} müşterisi aracı "${partner?.name}" yetkilisine atandı.`);
     addNotification('Aracı Atandı', `${customer?.companyName} için yetkili aracı ${partner?.name} olarak belirlendi.`, customerId);
   };
 
-  // Müşteriden İstenilecek Bilgiler Talebi Oluştur (Yalnızca Admin)
   const createOnboardingRequest = (customerId, title, description, items) => {
     if (currentUser.role !== 'admin') return;
     const customer = data.customers.find(c => c.id === customerId);
@@ -906,13 +1018,13 @@ export function AppProvider({ children }) {
       customerName: customer ? customer.companyName : 'Müşteri',
       title,
       description: description || 'İşlemlerin başlayabilmesi için lütfen aşağıdaki bilgileri iletiniz.',
-      status: 'pending', // 'pending' | 'completed'
+      status: 'pending',
       createdAt: new Date().toISOString(),
       completedAt: null,
       items: items.map((item, idx) => ({
         id: `item-${Date.now()}-${idx}`,
         label: item.label,
-        type: item.type || 'text', // 'text' | 'password' | 'file' | 'note'
+        type: item.type || 'text',
         required: item.required ?? true,
         value: '',
         isSubmitted: false
@@ -932,9 +1044,7 @@ export function AppProvider({ children }) {
     );
   };
 
-  // Müşteri Tarafından Bilgilerin Gönderilmesi (Yetki Denetimli)
   const submitOnboardingData = (requestId, customerId, submittedValues) => {
-    // Katı Güvenlik: Müşteri yalnızca kendi firmasının onboarding talebini doldurabilir
     if (currentUser.role === 'musteri' && currentUser.customerId && customerId !== currentUser.customerId) {
       return;
     }
@@ -943,7 +1053,6 @@ export function AppProvider({ children }) {
 
     const customer = data.customers.find(c => c.id === customerId);
 
-    // Otomatik hesap bilgisi, dosya veya not ekle
     let newCredentials = [];
     let newFiles = [];
     let newNotes = [];
@@ -951,7 +1060,7 @@ export function AppProvider({ children }) {
     Object.entries(submittedValues).forEach(([itemLabel, itemVal]) => {
       if (!itemVal) return;
       if (itemLabel.toLowerCase().includes('şifre') || itemLabel.toLowerCase().includes('password')) {
-        newCredentials.push({
+        const cred = {
           id: 'cred-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
           customerId,
           serviceType: 'Sosyal Medya / Giriş',
@@ -964,9 +1073,11 @@ export function AppProvider({ children }) {
             { key: 'Tarih', value: new Date().toISOString().split('T')[0], isSecret: false }
           ],
           updatedAt: new Date().toISOString().split('T')[0]
-        });
+        };
+        newCredentials.push(cred);
+        dbInsertCredential(cred).catch(console.error);
       } else if (itemLabel.toLowerCase().includes('logo') || itemLabel.toLowerCase().includes('dosya')) {
-        newFiles.push({
+        const file = {
           id: 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
           customerId,
           name: typeof itemVal === 'string' ? itemVal : 'Musteri_Yuklenen_Logo.svg',
@@ -976,9 +1087,11 @@ export function AppProvider({ children }) {
           description: 'Müşteri başlangıç formundan yüklendi.',
           uploadedBy: customer ? customer.contactPerson : 'Müşteri',
           uploadedAt: new Date().toISOString()
-        });
+        };
+        newFiles.push(file);
+        dbInsertFile(file).catch(console.error);
       } else {
-        newNotes.push({
+        const note = {
           id: 'note-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
           customerId,
           authorName: customer ? customer.contactPerson : 'Müşteri',
@@ -987,14 +1100,16 @@ export function AppProvider({ children }) {
           content: `${itemLabel}: ${itemVal}`,
           color: 'emerald',
           createdAt: new Date().toISOString()
-        });
+        };
+        newNotes.push(note);
+        dbInsertNote(note).catch(console.error);
       }
     });
 
     setData(prev => {
       const updatedRequests = prev.onboardingRequests.map(req => {
         if (req.id === requestId) {
-          return {
+          const updatedReq = {
             ...req,
             status: 'completed',
             completedAt: new Date().toISOString(),
@@ -1004,6 +1119,12 @@ export function AppProvider({ children }) {
               isSubmitted: true
             }))
           };
+          dbUpdateOnboardingRequest(requestId, {
+            status: 'completed',
+            completedAt: updatedReq.completedAt,
+            items: updatedReq.items
+          }).catch(console.error);
+          return updatedReq;
         }
         return req;
       });
@@ -1029,7 +1150,9 @@ export function AppProvider({ children }) {
     );
   };
 
-  // JSON Dışa Aktarma (Yedekleme)
+  // -------------------------------------------------------------
+  // YEDEKLEME & SIFIRLAMA
+  // -------------------------------------------------------------
   const exportDataAsJSON = () => {
     const jsonStr = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -1043,7 +1166,6 @@ export function AppProvider({ children }) {
     URL.revokeObjectURL(url);
   };
 
-  // JSON İçe Aktarma (Yalnızca Admin)
   const importDataFromJSON = (jsonString) => {
     if (currentUser.role !== 'admin') {
       return { success: false, error: 'Bu işlem için Yönetici (Admin) yetkisi gerekmektedir.' };
@@ -1052,6 +1174,10 @@ export function AppProvider({ children }) {
       const parsed = JSON.parse(jsonString);
       if (parsed.customers && parsed.tasks) {
         setData(parsed);
+        // Eğer veritabanı bağlıysa veritabanına da yükle
+        if (dbStatus === 'connected') {
+          seedDatabaseToCloud(parsed);
+        }
         return { success: true };
       } else {
         return { success: false, error: 'Geçersiz veri yapısı' };
@@ -1061,10 +1187,9 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Demo Verisini Sıfırla (Yalnızca Admin)
   const resetToDefaultData = () => {
     if (currentUser.role !== 'admin') return;
-    setData({
+    const defaultData = {
       users: INITIAL_USERS,
       customers: INITIAL_CUSTOMERS,
       categories: INITIAL_CATEGORIES,
@@ -1077,11 +1202,54 @@ export function AppProvider({ children }) {
       notifications: INITIAL_NOTIFICATIONS,
       templates: INITIAL_TEMPLATES,
       onboardingRequests: INITIAL_ONBOARDING_REQUESTS
-    });
+    };
+    setData(defaultData);
     localStorage.removeItem(STORAGE_KEY);
+    if (dbStatus === 'connected') {
+      seedDatabaseToCloud(defaultData);
+    }
   };
 
-  // Müşteri bazlı hesaplamalar (İlerleme oranı vb.)
+  const clearAllData = () => {
+    if (currentUser.role !== 'admin') return;
+    const emptyData = {
+      users: INITIAL_USERS,
+      customers: [],
+      categories: data.categories,
+      tasks: [],
+      credentials: [],
+      notes: [],
+      files: [],
+      comments: [],
+      activities: [{
+        id: 'act-init',
+        customerId: null,
+        customerName: 'Sistem',
+        userName: currentUser.name,
+        actionText: 'Tüm sistem veritabanı sıfırlandı. Temiz çalışma alanı hazırlandı.',
+        type: 'system',
+        createdAt: new Date().toISOString()
+      }],
+      notifications: [{
+        id: 'notif-cleared',
+        title: 'Veritabanı Sıfırlandı',
+        message: 'Tüm müşteri ve görev kayıtları başarıyla temizlendi.',
+        read: false,
+        createdAt: new Date().toISOString(),
+        linkCustomerId: null
+      }],
+      templates: data.templates,
+      onboardingRequests: []
+    };
+    setData(emptyData);
+    localStorage.removeItem(STORAGE_KEY);
+    if (dbStatus === 'connected') {
+      seedDatabaseToCloud(emptyData);
+    }
+    logActivity('global', `${currentUser.name} tüm sistem verilerini sıfırladı.`);
+  };
+
+  // Müşteri bazlı hesaplamalar
   const getCustomerProgress = (customerId) => {
     const customerTasks = data.tasks.filter(t => t.customerId === customerId);
     if (customerTasks.length === 0) return { total: 0, completed: 0, percentage: 0 };
@@ -1094,13 +1262,13 @@ export function AppProvider({ children }) {
     };
   };
 
-  // Rol bazlı müşteri listesi filtresi
+  // Rol bazlı müşteri filtresi
   const getAccessibleCustomers = () => {
     if (currentUser.role === 'admin') {
       return data.customers;
     }
     if (currentUser.role === 'araci') {
-      return data.customers.filter(c => c.partnerId === currentUser.id || c.partnerName.includes(currentUser.name));
+      return data.customers.filter(c => c.partnerId === currentUser.id || c.partnerName?.includes(currentUser.name));
     }
     if (currentUser.role === 'musteri') {
       return data.customers.filter(c => c.id === (currentUser.customerId || 'cust-omtek'));
@@ -1125,6 +1293,13 @@ export function AppProvider({ children }) {
         setActivePage,
         searchQuery,
         setSearchQuery,
+        // Veritabanı durumları
+        dbStatus,
+        dbError,
+        isSyncing,
+        isDbConnected: dbStatus === 'connected',
+        loadDataFromDb,
+        seedDatabaseToCloud,
         // Eylemler
         toggleTask,
         addTask,
