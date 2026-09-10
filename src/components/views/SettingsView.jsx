@@ -8,14 +8,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Trash2,
-  RefreshCw,
-  Copy,
-  Check,
-  Server,
-  ExternalLink
+  RefreshCw
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { testNeonHealth } from '../../services/neonService';
 
 export default function SettingsView() {
   const {
@@ -25,16 +20,11 @@ export default function SettingsView() {
     exportDataAsJSON,
     importDataFromJSON,
     currentUser,
-    dbStatus,
-    dbError,
-    isSyncing,
-    loadDataFromDb
+    isSyncing
   } = useApp();
 
   const fileInputRef = useRef(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
-  const [isTesting, setIsTesting] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
 
   const showNotification = (message, type = 'success') => {
     setFeedback({ message, type });
@@ -74,32 +64,6 @@ export default function SettingsView() {
     }
   };
 
-  // Neon Bağlantısını Test Et
-  const handleTestNeon = async () => {
-    setIsTesting(true);
-    try {
-      const res = await testNeonHealth();
-      if (res.success) {
-        showNotification(res.message, res.status === 'connected' ? 'success' : 'warning');
-        loadDataFromDb();
-      } else {
-        showNotification(res.message || 'Bağlantı hatası: Neon veritabanına ulaşılamadı.', 'error');
-      }
-    } catch (e) {
-      showNotification('Test hatası: ' + e.message, 'error');
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
-  // SQL Şema Dosyası Bilgisini Kopyala
-  const handleCopySqlInfo = () => {
-    navigator.clipboard.writeText('-- AVDENS WORK Neon PostgreSQL Şeması proje ana dizinindeki "neon_schema.sql" dosyasında yer almaktadır.');
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 3000);
-    showNotification('SQL şema bilgisi panoya kopyalandı! Projenizdeki "neon_schema.sql" dosyasını doğrudan Neon SQL konsolunda da çalıştırabilirsiniz.', 'success');
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '860px', margin: '0 auto' }}>
 
@@ -110,10 +74,10 @@ export default function SettingsView() {
         </div>
         <div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-            Sistem Ayarları &amp; Veritabanı Yönetimi
+            Sistem Ayarları &amp; Veri Yönetimi
           </h2>
           <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            Vercel + Neon (Serverless PostgreSQL) bulut veritabanı ve veri yönetimi araçları
+            Veri kütüğü, yedekleme, dışa aktarma ve sistem sıfırlama araçları
           </span>
         </div>
       </div>
@@ -137,183 +101,7 @@ export default function SettingsView() {
         </div>
       )}
 
-      {/* 1. VERCEL + NEON POSTGRESQL YÖNETİM PANELİ */}
-      <div className="card" style={{ padding: '24px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: 'var(--radius-sm)',
-              background: dbStatus === 'connected' ? 'var(--success-light)' : dbStatus === 'empty_needs_init' ? '#fef3c7' : 'var(--primary-light)',
-              color: dbStatus === 'connected' ? 'var(--success-text)' : dbStatus === 'empty_needs_init' ? '#b45309' : 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Server size={20} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                Vercel + Neon (Serverless PostgreSQL)
-              </h3>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                Vercel Serverless Functions (/api/*) üzerinden yüksek performanslı bulut veritabanı
-              </span>
-            </div>
-          </div>
-
-          {/* Durum Rozeti */}
-          <div>
-            {dbStatus === 'connected' && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '999px',
-                backgroundColor: '#dcfce7',
-                color: '#15803d',
-                fontSize: '0.82rem',
-                fontWeight: 700
-              }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22c55e' }}></span>
-                Neon PostgreSQL Bağlı &amp; Canlı
-              </span>
-            )}
-            {dbStatus === 'connecting' && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '999px',
-                backgroundColor: '#e0f2fe',
-                color: '#0369a1',
-                fontSize: '0.82rem',
-                fontWeight: 700
-              }}>
-                <RefreshCw size={12} className="spin" />
-                Bağlanılıyor...
-              </span>
-            )}
-            {dbStatus === 'empty_needs_init' && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '999px',
-                backgroundColor: '#fef3c7',
-                color: '#b45309',
-                fontSize: '0.82rem',
-                fontWeight: 700
-              }}>
-                Neon Bağlı (Tablolar Başlatılmalı)
-              </span>
-            )}
-            {dbStatus === 'unconfigured' && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '999px',
-                backgroundColor: '#f1f5f9',
-                color: '#475569',
-                fontSize: '0.82rem',
-                fontWeight: 700
-              }}>
-                Yerel Mod (Vercel Neon Bekleniyor)
-              </span>
-            )}
-            {dbStatus === 'error' && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '999px',
-                backgroundColor: '#fee2e2',
-                color: '#b91c1c',
-                fontSize: '0.82rem',
-                fontWeight: 700
-              }}>
-                Bağlantı Hatası
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Durum Açıklama Kutusu */}
-        <div style={{
-          padding: '14px 18px',
-          backgroundColor: 'var(--bg-app)',
-          borderRadius: 'var(--radius-sm)',
-          borderLeft: `4px solid ${dbStatus === 'connected' ? 'var(--success)' : 'var(--primary)'}`,
-          fontSize: '0.86rem',
-          lineHeight: 1.5,
-          color: 'var(--text-main)'
-        }}>
-          {dbStatus === 'connected' ? (
-            <div>
-              <strong>✅ Sistem Canlı Neon PostgreSQL Veritabanında Çalışıyor:</strong> Müşteriler, görevler, şifre kasası, dosyalar ve notlar artık tarayıcı hafızasında değil, Vercel Serverless API üzerinden doğrudan Neon bulut veritabanında kalıcı olarak saklanmaktadır.
-            </div>
-          ) : dbStatus === 'empty_needs_init' ? (
-            <div>
-              <strong>⚡ Neon Bağlantısı Hazır:</strong> Vercel Neon veritabanınız bağlı durumdadır.
-            </div>
-          ) : (
-            <div>
-              <strong>ℹ️ Vercel Neon Entegrasyonu:</strong> Vercel Dashboard &gt; Storage &gt; Neon Postgres bağlantısı yapıldığında sistem otomatik olarak canlı veritabanı moduna geçer. Yerel ortamda çalıştırmak için <code>.env</code> dosyanıza <code>DATABASE_URL</code> ekleyebilirsiniz.
-            </div>
-          )}
-        </div>
-
-        {/* Eylem Butonları */}
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-primary"
-            onClick={handleTestNeon}
-            disabled={isTesting}
-          >
-            <RefreshCw size={15} className={isTesting ? 'spin' : ''} />
-            <span>{isTesting ? 'Kontrol Ediliyor...' : 'Bağlantıyı Test Et'}</span>
-          </button>
-
-          <button
-            className="btn btn-secondary"
-            onClick={handleCopySqlInfo}
-          >
-            {copiedSql ? <Check size={15} color="var(--success-text)" /> : <Copy size={15} />}
-            <span>SQL Şeması (neon_schema.sql)</span>
-          </button>
-        </div>
-
-        {/* Hızlı Kurulum Rehberi */}
-        <div style={{
-          padding: '16px',
-          background: 'var(--bg-app)',
-          borderRadius: 'var(--radius-sm)',
-          fontSize: '0.82rem',
-          color: 'var(--text-muted)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
-          <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Server size={16} color="var(--primary)" />
-            Vercel Dashboard Üzerinden Neon Ekleme (30 Saniye):
-          </div>
-          <div>1. <a href="https://vercel.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Vercel Dashboard</a> projenize (avdensmedya) gidin.</div>
-          <div>2. Üst menüden <strong>Storage</strong> sekmesine tıklayın ve <strong>Connect Database</strong> butonuna basın.</div>
-          <div>3. <strong>Neon Serverless Postgres</strong> seçeneğini seçip "Create" butonuna tıklayın.</div>
-          <div>4. Vercel, <code>DATABASE_URL</code> ve <code>POSTGRES_URL</code> anahtarlarını projenize otomatik olarak bağlar.</div>
-          <div>5. Bağlantı tamamlandığında sisteminiz otomatik olarak canlı veritabanı üzerinden çalışmaya başlar.</div>
-        </div>
-      </div>
-
-      {/* 2. AKTİF VERİ KÜTÜĞÜ */}
+      {/* 1. AKTİF VERİ KÜTÜĞÜ */}
       <div className="card" style={{ padding: '22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -351,7 +139,7 @@ export default function SettingsView() {
         </div>
       </div>
 
-      {/* 3. YEDEKLEME & İÇE AKTARMA ARAÇLARI */}
+      {/* 2. YEDEKLEME & İÇE AKTARMA ARAÇLARI */}
       <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
         <div>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Yedekleme &amp; Geri Yükleme</h3>
@@ -386,7 +174,7 @@ export default function SettingsView() {
         </div>
       </div>
 
-      {/* 4. SIFIRLAMA BÖLÜMLERİ */}
+      {/* 3. SIFIRLAMA BÖLÜMLERİ */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
         
         {/* Demo Verilerini Sıfırla */}

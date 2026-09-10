@@ -27,8 +27,7 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
     markAllNotificationsRead,
     setSelectedCustomerId,
     setActivePage,
-    logout,
-    dbStatus
+    logout
   } = useApp();
 
   const [notifOpen, setNotifOpen] = useState(false);
@@ -101,37 +100,6 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
       {/* Sağ Aksiyonlar */}
       <div className="navbar-actions">
 
-        {/* Veritabanı Durum Göstergesi */}
-        <button
-          onClick={() => setActivePage('settings')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '5px 10px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-color)',
-            backgroundColor: dbStatus === 'connected' ? 'rgba(34, 197, 94, 0.1)' : 'var(--bg-app)',
-            color: dbStatus === 'connected' ? '#16a34a' : 'var(--text-muted)',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.15s'
-          }}
-          title={dbStatus === 'connected' ? 'Vercel Neon PostgreSQL Veritabanı Bağlı' : 'Veritabanı Ayarlarına Git'}
-        >
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              backgroundColor: dbStatus === 'connected' ? '#22c55e' : dbStatus === 'connecting' ? '#0284c7' : '#94a3b8'
-            }}
-          />
-          <span style={{ display: 'inline' }}>
-            {dbStatus === 'connected' ? 'Neon DB' : 'Veritabanı'}
-          </span>
-        </button>
 
         {/* Hızlı İşlem Butonu (Admin ve Aracı için) */}
         {currentUser.role !== 'musteri' && (
