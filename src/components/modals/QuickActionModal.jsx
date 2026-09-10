@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { X, UserPlus, CheckSquare, FileText, Sparkles, UserCheck, AlertCircle } from 'lucide-react';
+import { X, UserPlus, CheckSquare, FileText, Sparkles, UserCheck, AlertCircle, Instagram, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export default function QuickActionModal({ isOpen, onClose }) {
-  const { data, addTask, addCustomer, addNote, addUser, currentUser, selectedCustomerId, getAccessibleCustomers } = useApp();
+  const { data, addTask, addCustomer, addNote, addUser, addContentPost, currentUser, selectedCustomerId, getAccessibleCustomers } = useApp();
 
   const accessibleCustomers = getAccessibleCustomers();
   const defaultCustId = selectedCustomerId && accessibleCustomers.some(c => c.id === selectedCustomerId)
     ? selectedCustomerId
     : (accessibleCustomers[0]?.id || '');
 
-  const [activeTab, setActiveTab] = useState('task'); // 'task' | 'customer' | 'note' | 'user'
+  const [activeTab, setActiveTab] = useState('task'); // 'task' | 'post' | 'customer' | 'note' | 'user'
 
   const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
@@ -54,7 +54,26 @@ export default function QuickActionModal({ isOpen, onClose }) {
   });
   const [userError, setUserError] = useState('');
 
+  // Sosyal Medya Gönderi formu (Madde 2)
+  const [postForm, setPostForm] = useState({
+    title: '',
+    customerId: defaultCustId,
+    caption: '',
+    platform: 'instagram',
+    mediaType: 'image',
+    mediaUrl: '',
+    scheduledDate: new Date(Date.now() + 86400000).toISOString().slice(0, 16),
+    status: 'onay_bekliyor'
+  });
+
   if (!isOpen) return null;
+
+  const handlePostSubmit = (e) => {
+    e.preventDefault();
+    if (!postForm.title.trim()) return;
+    addContentPost(postForm);
+    onClose();
+  };
 
   const handleTaskSubmit = (e) => {
     e.preventDefault();
@@ -124,6 +143,14 @@ export default function QuickActionModal({ isOpen, onClose }) {
             <CheckSquare size={14} />
             <span>Yeni Görev</span>
           </button>
+          <button
+            className={`btn btn-sm ${activeTab === 'post' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab('post')}
+            style={activeTab === 'post' ? { background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)', borderColor: 'transparent', color: '#fff' } : {}}
+          >
+            <Instagram size={14} />
+            <span>İçerik Planla</span>
+          </button>
           {currentUser.role === 'admin' && (
             <button
               className={`btn btn-sm ${activeTab === 'customer' ? 'btn-primary' : 'btn-secondary'}`}
@@ -181,7 +208,7 @@ export default function QuickActionModal({ isOpen, onClose }) {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                 <div className="form-group">
                   <label>Kategori</label>
                   <select
@@ -248,6 +275,113 @@ export default function QuickActionModal({ isOpen, onClose }) {
             </form>
           )}
 
+          {/* Sosyal Medya İçerik Formu (Madde 2) */}
+          {activeTab === 'post' && (
+            <form onSubmit={handlePostSubmit}>
+              <div className="form-group">
+                <label>Müşteri Seçin *</label>
+                <select
+                  className="form-select"
+                  value={postForm.customerId}
+                  onChange={(e) => setPostForm({ ...postForm, customerId: e.target.value })}
+                  required
+                >
+                  {accessibleCustomers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.companyName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>İçerik Başlığı / Konusu *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Örn: Yeni Sezon İndirim Kampanyası"
+                  value={postForm.title}
+                  onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Platform</label>
+                  <select
+                    className="form-select"
+                    value={postForm.platform}
+                    onChange={(e) => setPostForm({ ...postForm, platform: e.target.value })}
+                  >
+                    <option value="instagram">Instagram</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="tiktok">TikTok</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Format</label>
+                  <select
+                    className="form-select"
+                    value={postForm.mediaType}
+                    onChange={(e) => setPostForm({ ...postForm, mediaType: e.target.value })}
+                  >
+                    <option value="image">Gönderi (Fotoğraf)</option>
+                    <option value="reels">Reels Videosu</option>
+                    <option value="carousel">Karusel</option>
+                    <option value="story">Hikaye (Story)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Görsel / Video URL</label>
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://..."
+                  value={postForm.mediaUrl}
+                  onChange={(e) => setPostForm({ ...postForm, mediaUrl: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Planlanan Tarih &amp; Saat</label>
+                <input
+                  type="datetime-local"
+                  className="form-input"
+                  value={postForm.scheduledDate}
+                  onChange={(e) => setPostForm({ ...postForm, scheduledDate: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Açıklama / Metin (Caption)</label>
+                <textarea
+                  className="form-textarea"
+                  rows={3}
+                  placeholder="Gönderi metni ve etiketler..."
+                  value={postForm.caption}
+                  onChange={(e) => setPostForm({ ...postForm, caption: e.target.value })}
+                />
+              </div>
+
+              <div className="modal-footer" style={{ margin: '0 -24px -24px -24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={onClose}>İptal</button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)', borderColor: 'transparent' }}
+                >
+                  İçeriği Planla
+                </button>
+              </div>
+            </form>
+          )}
+
           {/* Müşteri Formu */}
           {activeTab === 'customer' && (
             <form onSubmit={handleCustSubmit}>
@@ -263,7 +397,7 @@ export default function QuickActionModal({ isOpen, onClose }) {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                 <div className="form-group">
                   <label>Yetkili Kişi</label>
                   <input
@@ -463,7 +597,7 @@ export default function QuickActionModal({ isOpen, onClose }) {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                 <div className="form-group">
                   <label>Giriş Şifresi *</label>
                   <input

@@ -17,15 +17,28 @@ import {
   RefreshCw,
   Key,
   Copy,
-  Check
+  Check,
+  Plus,
+  Trash2,
+  FileCheck,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { generateTemplateOnboarding } from '../../utils/onboardingHelper';
 
 export default function NewCustomerModal({ isOpen, onClose }) {
   const { data, addCustomer, setSelectedCustomerId, setActivePage, currentUser } = useApp();
 
   const [showPassword, setShowPassword] = useState(false);
   const [passwordCopied, setPasswordCopied] = useState(false);
+
+  const initialTemplateId = data.templates[0]?.id || '';
+  const initialOnboarding = initialTemplateId
+    ? generateTemplateOnboarding(data.templates.find(t => t.id === initialTemplateId))
+    : null;
+
   const [formData, setFormData] = useState({
     companyName: '',
     contactPerson: '',
@@ -39,11 +52,15 @@ export default function NewCustomerModal({ isOpen, onClose }) {
     status: 'aktif',
     projectTitle: 'Dijital Pazarlama & Sosyal Medya Yönetimi',
     description: '',
-    applyTemplateId: data.templates[0]?.id || '', // Varsayılan olarak ilk şablon seçili
+    applyTemplateId: initialTemplateId,
     createPortalUser: true,
     clientEmail: '',
     clientPassword: 'Avdens2026!'
   });
+
+  const [autoOnboardingEnabled, setAutoOnboardingEnabled] = useState(Boolean(initialOnboarding));
+  const [onboardingData, setOnboardingData] = useState(initialOnboarding);
+  const [isOnboardingExpanded, setIsOnboardingExpanded] = useState(true);
   const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   if (!isOpen) return null;
@@ -55,6 +72,54 @@ export default function NewCustomerModal({ isOpen, onClose }) {
       res += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setFormData(prev => ({ ...prev, clientPassword: res }));
+  };
+
+  const handleTemplateChange = (newTemplateId) => {
+    setFormData(prev => ({ ...prev, applyTemplateId: newTemplateId }));
+    if (!newTemplateId) {
+      setOnboardingData(null);
+      setAutoOnboardingEnabled(false);
+    } else {
+      const selectedTmpl = data.templates.find(t => t.id === newTemplateId);
+      if (selectedTmpl) {
+        const generated = generateTemplateOnboarding(selectedTmpl);
+        setOnboardingData(generated);
+        setAutoOnboardingEnabled(true);
+      }
+    }
+  };
+
+  const handleItemLabelChange = (index, val) => {
+    if (!onboardingData) return;
+    const updated = [...onboardingData.items];
+    updated[index] = { ...updated[index], label: val };
+    setOnboardingData(prev => ({ ...prev, items: updated }));
+  };
+
+  const handleItemTypeChange = (index, type) => {
+    if (!onboardingData) return;
+    const updated = [...onboardingData.items];
+    updated[index] = { ...updated[index], type };
+    setOnboardingData(prev => ({ ...prev, items: updated }));
+  };
+
+  const handleItemRequiredChange = (index, required) => {
+    if (!onboardingData) return;
+    const updated = [...onboardingData.items];
+    updated[index] = { ...updated[index], required };
+    setOnboardingData(prev => ({ ...prev, items: updated }));
+  };
+
+  const handleRemoveItem = (index) => {
+    if (!onboardingData) return;
+    const updated = onboardingData.items.filter((_, i) => i !== index);
+    setOnboardingData(prev => ({ ...prev, items: updated }));
+  };
+
+  const handleAddItem = () => {
+    if (!onboardingData) return;
+    const newItem = { label: '', type: 'text', required: true };
+    setOnboardingData(prev => ({ ...prev, items: [...prev.items, newItem] }));
   };
 
   const handleSubmit = (e) => {
@@ -69,7 +134,15 @@ export default function NewCustomerModal({ isOpen, onClose }) {
       clientEmail: formData.clientEmail || formData.email
     };
 
-    const newCustomerId = addCustomer(payload, formData.applyTemplateId || null);
+    const autoOnboardingPayload = (formData.applyTemplateId && autoOnboardingEnabled && onboardingData && onboardingData.items?.length > 0)
+      ? {
+          title: onboardingData.title,
+          description: onboardingData.description,
+          items: onboardingData.items.filter(it => it && it.label && it.label.trim())
+        }
+      : null;
+
+    const newCustomerId = addCustomer(payload, formData.applyTemplateId || null, autoOnboardingPayload);
     onClose();
 
     // Kullanıcıyı yeni müşterinin detayına götür
@@ -93,7 +166,7 @@ export default function NewCustomerModal({ isOpen, onClose }) {
     >
       <div
         className="modal-content"
-        style={{ maxWidth: '680px' }}
+        style={{ maxWidth: '720px' }}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
@@ -308,7 +381,7 @@ export default function NewCustomerModal({ isOpen, onClose }) {
                 <select
                   className="form-select"
                   value={formData.applyTemplateId}
-                  onChange={(e) => setFormData({ ...formData, applyTemplateId: e.target.value })}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
                 >
                   <option value="">Şablon Uygulama (Boş Proje Aç)</option>
                   {data.templates.map(tmpl => (
@@ -317,6 +390,168 @@ export default function NewCustomerModal({ isOpen, onClose }) {
                     </option>
                   ))}
                 </select>
+
+                {/* Şablona Bağlı Otomatik Onboarding & Yönetici Onay Bloğu */}
+                {formData.applyTemplateId && onboardingData && (
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '12px',
+                      background: autoOnboardingEnabled ? '#ffffff' : '#f8fafc',
+                      borderRadius: 'var(--radius-sm)',
+                      border: autoOnboardingEnabled ? '1px solid #93c5fd' : '1px dashed #cbd5e1',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', flex: 1 }}>
+                        <input
+                          type="checkbox"
+                          checked={autoOnboardingEnabled}
+                          onChange={(e) => setAutoOnboardingEnabled(e.target.checked)}
+                          style={{ width: 17, height: 17, accentColor: 'var(--primary)', cursor: 'pointer', marginTop: '2px' }}
+                        />
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: autoOnboardingEnabled ? '#1e40af' : 'var(--text-muted)' }}>
+                              Başlangıç Bilgi & Evrak Taleplerini Müşteriye İlet (Onboarding)
+                            </span>
+                            {autoOnboardingEnabled && (
+                              <span style={{ fontSize: '0.7rem', background: '#dbeafe', color: '#1e40af', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
+                                {onboardingData.items.length} Alan Belirlendi
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                            Müşteri portala ilk girdiğinde işin başlaması için bu bilgileri sağlaması istenir.
+                          </p>
+                        </div>
+                      </label>
+
+                      {autoOnboardingEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => setIsOnboardingExpanded(!isOnboardingExpanded)}
+                          className="btn btn-secondary"
+                          style={{ padding: '4px 8px', fontSize: '0.72rem', height: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          {isOnboardingExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          <span>{isOnboardingExpanded ? 'Listeyi Gizle' : 'Talepleri İncele'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {autoOnboardingEnabled && isOnboardingExpanded && (
+                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                            Talep Edilecek Bilgi & Belgeler ({onboardingData.items.length}):
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleAddItem}
+                            style={{
+                              fontSize: '0.72rem',
+                              color: 'var(--primary)',
+                              fontWeight: 600,
+                              background: 'transparent',
+                              border: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Plus size={13} />
+                            <span>Yeni Talep Ekle</span>
+                          </button>
+                        </div>
+
+                        {onboardingData.items.map((item, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              background: '#f8fafc',
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid #e2e8f0'
+                            }}
+                          >
+                            <select
+                              value={item.type}
+                              onChange={(e) => handleItemTypeChange(idx, e.target.value)}
+                              style={{
+                                fontSize: '0.72rem',
+                                padding: '4px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid #cbd5e1',
+                                background: item.type === 'password' ? '#fef2f2' : item.type === 'file' ? '#eff6ff' : '#ffffff',
+                                color: item.type === 'password' ? '#991b1b' : item.type === 'file' ? '#1e40af' : '#334155',
+                                fontWeight: 600,
+                                flexShrink: 0
+                              }}
+                            >
+                              <option value="text">✏️ Metin</option>
+                              <option value="password">🔒 Şifre</option>
+                              <option value="file">📎 Dosya</option>
+                              <option value="note">📝 Not</option>
+                            </select>
+
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={item.label}
+                              onChange={(e) => handleItemLabelChange(idx, e.target.value)}
+                              placeholder="Talep edilecek bilgi veya belge adı..."
+                              style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', flex: 1 }}
+                            />
+
+                            <label
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                fontSize: '0.7rem',
+                                color: item.required ? 'var(--danger)' : 'var(--text-muted)',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                flexShrink: 0
+                              }}
+                              title="Bu alan doldurulmadan onaylanamaz"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={item.required}
+                                onChange={(e) => handleItemRequiredChange(idx, e.target.checked)}
+                                style={{ accentColor: 'var(--danger)' }}
+                              />
+                              <span>Zorunlu</span>
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(idx)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-muted)',
+                                padding: '2px',
+                                cursor: 'pointer',
+                                flexShrink: 0
+                              }}
+                              title="Bu talebi kaldır"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="form-group" style={{ marginTop: '14px' }}>

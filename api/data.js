@@ -53,7 +53,8 @@ export default async function handler(req, res) {
         activities,
         notifications,
         templates,
-        onboardingRequests
+        onboardingRequests,
+        contentPosts
       ] = await Promise.all([
         sql`SELECT * FROM users`,
         sql`SELECT * FROM customers ORDER BY "createdAt" DESC`,
@@ -66,7 +67,24 @@ export default async function handler(req, res) {
         sql`SELECT * FROM activities ORDER BY "createdAt" DESC`,
         sql`SELECT * FROM notifications ORDER BY "createdAt" DESC`,
         sql`SELECT * FROM templates`,
-        sql`SELECT * FROM onboarding_requests ORDER BY "createdAt" DESC`
+        sql`SELECT * FROM onboarding_requests ORDER BY "createdAt" DESC`,
+        sql`
+          CREATE TABLE IF NOT EXISTS content_posts (
+            id TEXT PRIMARY KEY,
+            "customerId" TEXT NOT NULL,
+            "customerName" TEXT,
+            title TEXT NOT NULL,
+            caption TEXT,
+            "mediaUrl" TEXT,
+            "mediaType" TEXT DEFAULT 'image',
+            platform TEXT DEFAULT 'instagram',
+            "scheduledDate" TIMESTAMPTZ,
+            status TEXT DEFAULT 'onay_bekliyor',
+            "clientFeedback" TEXT,
+            "createdAt" TIMESTAMPTZ DEFAULT NOW()
+          );
+          SELECT * FROM content_posts ORDER BY "scheduledDate" ASC, "createdAt" DESC;
+        `
       ]);
 
       return res.status(200).json({
@@ -84,7 +102,8 @@ export default async function handler(req, res) {
           activities: activities || [],
           notifications: notifications || [],
           templates: templates || [],
-          onboardingRequests: onboardingRequests || []
+          onboardingRequests: onboardingRequests || [],
+          contentPosts: contentPosts || []
         }
       });
     } catch (err) {
@@ -199,6 +218,7 @@ export default async function handler(req, res) {
           await sql`DELETE FROM credentials WHERE "customerId" = ${customerId};`;
           await sql`DELETE FROM files WHERE "customerId" = ${customerId};`;
           await sql`DELETE FROM comments WHERE "customerId" = ${customerId};`;
+          await sql`DELETE FROM content_posts WHERE "customerId" = ${customerId};`;
           await sql`DELETE FROM customers WHERE id = ${customerId};`;
           return res.status(200).json({ success: true });
         }
@@ -429,6 +449,49 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true });
         }
 
+        // --- Sosyal Medya İçerik Takvimi ---
+        case 'insertContentPost': {
+          const post = payload;
+          await sql`
+            INSERT INTO content_posts (
+              id, "customerId", "customerName", title, caption, "mediaUrl", "mediaType", platform, "scheduledDate", status, "clientFeedback"
+            )
+            VALUES (
+              ${post.id}, ${post.customerId}, ${post.customerName || ''}, ${post.title}, ${post.caption || ''}, 
+              ${post.mediaUrl || ''}, ${post.mediaType || 'image'}, ${post.platform || 'instagram'}, 
+              ${post.scheduledDate || null}, ${post.status || 'onay_bekliyor'}, ${post.clientFeedback || ''}
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              title = EXCLUDED.title,
+              caption = EXCLUDED.caption,
+              "mediaUrl" = EXCLUDED."mediaUrl",
+              "mediaType" = EXCLUDED."mediaType",
+              platform = EXCLUDED.platform,
+              "scheduledDate" = EXCLUDED."scheduledDate",
+              status = EXCLUDED.status,
+              "clientFeedback" = EXCLUDED."clientFeedback";
+          `;
+          return res.status(200).json({ success: true });
+        }
+
+        case 'updateContentPost': {
+          const { id, updates } = payload;
+          if (updates.title) await sql`UPDATE content_posts SET title = ${updates.title} WHERE id = ${id};`;
+          if (updates.caption !== undefined) await sql`UPDATE content_posts SET caption = ${updates.caption} WHERE id = ${id};`;
+          if (updates.mediaUrl !== undefined) await sql`UPDATE content_posts SET "mediaUrl" = ${updates.mediaUrl} WHERE id = ${id};`;
+          if (updates.mediaType) await sql`UPDATE content_posts SET "mediaType" = ${updates.mediaType} WHERE id = ${id};`;
+          if (updates.platform) await sql`UPDATE content_posts SET platform = ${updates.platform} WHERE id = ${id};`;
+          if (updates.scheduledDate !== undefined) await sql`UPDATE content_posts SET "scheduledDate" = ${updates.scheduledDate} WHERE id = ${id};`;
+          if (updates.status) await sql`UPDATE content_posts SET status = ${updates.status} WHERE id = ${id};`;
+          if (updates.clientFeedback !== undefined) await sql`UPDATE content_posts SET "clientFeedback" = ${updates.clientFeedback} WHERE id = ${id};`;
+          return res.status(200).json({ success: true });
+        }
+
+        case 'deleteContentPost': {
+          await sql`DELETE FROM content_posts WHERE id = ${payload.id};`;
+          return res.status(200).json({ success: true });
+        }
+
         case 'clearAllData': {
           await sql`DELETE FROM tasks;`;
           await sql`DELETE FROM customers;`;
@@ -437,6 +500,7 @@ export default async function handler(req, res) {
           await sql`DELETE FROM files;`;
           await sql`DELETE FROM comments;`;
           await sql`DELETE FROM onboarding_requests;`;
+          await sql`DELETE FROM content_posts;`;
           await sql`DELETE FROM activities;`;
           await sql`DELETE FROM notifications;`;
           await sql`DELETE FROM users WHERE role = 'musteri';`;

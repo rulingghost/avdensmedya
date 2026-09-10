@@ -11,3 +11,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </AppProvider>
   </React.StrictMode>,
 )
+
+// PWA Service Worker Kaydı
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('Service Worker kayıt hatası:', err);
+    });
+  });
+}
+

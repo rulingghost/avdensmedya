@@ -43,3 +43,5 @@ export const INITIAL_ACTIVITIES = [];
 export const INITIAL_NOTIFICATIONS = [];
 export const INITIAL_TEMPLATES = [];
 export const INITIAL_ONBOARDING_REQUESTS = [];
+export const INITIAL_CONTENT_POSTS = [];
+

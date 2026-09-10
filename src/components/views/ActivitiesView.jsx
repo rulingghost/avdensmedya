@@ -30,6 +30,26 @@ export default function ActivitiesView() {
     return true;
   });
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' });
+    } catch {
+      return '';
+    }
+  };
+
+  const filterTabs = [
+    { id: 'all', label: 'Tüm Aktiviteler' },
+    { id: 'task_completed', label: '✓ Tamamlanan Görevler' },
+    { id: 'comment', label: '💬 Yorumlar' },
+    { id: 'credential', label: '🔑 Hesap Bilgileri' },
+    { id: 'customer_created', label: '🏢 Yeni Müşteriler' },
+    { id: 'onboarding_created', label: '📋 Başlangıç Talepleri' }
+  ];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
@@ -44,7 +64,7 @@ export default function ActivitiesView() {
               Son Aktiviteler & Sistem Günlüğü
             </h2>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              Sistemde yapılan tüm görev tamamlama, not, şifre ve yorum hareketleri
+              Sistemde yapılan tüm görev tamamlama, not, şifre, şablon ve müşteri hareketleri
             </span>
           </div>
         </div>
@@ -68,12 +88,7 @@ export default function ActivitiesView() {
         </div>
 
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {[
-            { id: 'all', label: 'Tüm Aktiviteler' },
-            { id: 'task_completed', label: '✓ Tamamlanan Görevler' },
-            { id: 'comment', label: '💬 Yorumlar' },
-            { id: 'credential', label: '🔑 Hesap Bilgileri' }
-          ].map(tab => (
+          {filterTabs.map(tab => (
             <button
               key={tab.id}
               className={`btn btn-sm ${filterType === tab.id ? 'btn-primary' : 'btn-secondary'}`}
@@ -94,71 +109,85 @@ export default function ActivitiesView() {
               Seçilen kriterlere uygun aktivite kaydı bulunamadı.
             </div>
           ) : (
-            filteredActivities.map((act) => (
-              <div
-                key={act.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '14px',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  paddingBottom: '14px'
-                }}
-              >
+            filteredActivities.map((act) => {
+              const custName = act.customerName || accessibleCustomers.find(c => c.id === act.customerId)?.companyName || 'Müşteri';
+              const formattedTime = formatDate(act.createdAt);
+
+              return (
                 <div
+                  key={act.id}
                   style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: '50%',
-                    backgroundColor:
-                      act.type === 'task_completed' ? 'var(--success-light)' :
-                      act.type === 'comment' ? 'var(--primary-light)' :
-                      act.type === 'credential' ? 'var(--warning-light)' : '#f1f5f9',
-                    color:
-                      act.type === 'task_completed' ? 'var(--success)' :
-                      act.type === 'comment' ? 'var(--primary)' :
-                      act.type === 'credential' ? 'var(--warning)' : 'var(--text-muted)',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginTop: '2px'
+                    alignItems: 'flex-start',
+                    gap: '14px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    paddingBottom: '14px'
                   }}
                 >
-                  {act.type === 'task_completed' ? <CheckCircle2 size={18} /> :
-                   act.type === 'comment' ? <MessageCircle size={18} /> :
-                   act.type === 'credential' ? <Key size={18} /> :
-                   <Sparkles size={18} />}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: 600 }}>
-                      {act.userName}
-                    </span>
-                    <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-                      {act.actionText}
-                    </span>
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: '50%',
+                      backgroundColor:
+                        act.type === 'task_completed' ? 'var(--success-light)' :
+                        act.type === 'comment' ? 'var(--primary-light)' :
+                        act.type === 'credential' ? 'var(--warning-light)' :
+                        act.type === 'customer_created' ? '#e0e7ff' :
+                        act.type === 'onboarding_created' ? '#fef3c7' : '#f1f5f9',
+                      color:
+                        act.type === 'task_completed' ? 'var(--success)' :
+                        act.type === 'comment' ? 'var(--primary)' :
+                        act.type === 'credential' ? 'var(--warning)' :
+                        act.type === 'customer_created' ? '#4338ca' :
+                        act.type === 'onboarding_created' ? '#b45309' : 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      marginTop: '2px'
+                    }}
+                  >
+                    {act.type === 'task_completed' ? <CheckCircle2 size={18} /> :
+                     act.type === 'comment' ? <MessageCircle size={18} /> :
+                     act.type === 'credential' ? <Key size={18} /> :
+                     act.type === 'customer_created' ? <Building2 size={18} /> :
+                     <Sparkles size={18} />}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px', fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                    <span
-                      onClick={() => {
-                        if (act.customerId) {
-                          setSelectedCustomerId(act.customerId);
-                          setActivePage('customer-detail');
-                        }
-                      }}
-                      style={{ color: 'var(--primary)', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      🏢 {act.customerName}
-                    </span>
-                    <span>•</span>
-                    <span>📅 {new Date(act.createdAt).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                        {act.userName || 'Sistem'}
+                      </span>
+                      <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
+                        {act.actionText}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px', fontSize: '0.75rem', color: 'var(--text-dim)', flexWrap: 'wrap' }}>
+                      <span
+                        onClick={() => {
+                          if (act.customerId) {
+                            setSelectedCustomerId(act.customerId);
+                            setActivePage('customer-detail');
+                          }
+                        }}
+                        style={{ color: 'var(--primary)', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        🏢 {custName}
+                      </span>
+                      {formattedTime && (
+                        <>
+                          <span>•</span>
+                          <span>📅 {formattedTime}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

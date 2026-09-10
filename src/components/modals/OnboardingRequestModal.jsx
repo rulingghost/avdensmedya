@@ -48,6 +48,23 @@ export default function OnboardingRequestModal({ isOpen, onClose, customerId }) 
         { label: 'Şirket Sloganı ve Misyon Metni', type: 'note', required: false },
         { label: 'Yetkili İletişim Bilgileri', type: 'text', required: true }
       ]);
+    } else if (presetKey === 'seo') {
+      setTitle('SEO & Google Haritalar Başlangıç Talepleri');
+      setItems([
+        { label: 'Google Business / Harita E-posta Adresi', type: 'text', required: true },
+        { label: 'Web Sitesi Search Console / Analytics İzni', type: 'text', required: true },
+        { label: 'İşletme Adresi, Telefon ve Çalışma Saatleri', type: 'note', required: true },
+        { label: 'Öne Çıkarılacak Anahtar Kelimeler ve Hizmet Bölgeleri', type: 'note', required: false }
+      ]);
+    } else if (presetKey === 'full') {
+      setTitle('360° Dijital Pazarlama & Dönüşüm Başlangıç Talepleri');
+      setItems([
+        { label: 'Vektörel Logo ve Kurumsal Kimlik Dosyaları', type: 'file', required: true },
+        { label: 'Instagram & Facebook Şifre / Yönetici Erişimi', type: 'password', required: true },
+        { label: 'Web Sitesi Panel / FTP Giriş Bilgileri', type: 'password', required: true },
+        { label: 'WhatsApp & Müşteri İletişim Hattı Numarası', type: 'text', required: true },
+        { label: 'Hedef Kitle, Kampanya Bütçesi ve Beklentiler', type: 'note', required: false }
+      ]);
     }
   };
 
@@ -138,31 +155,49 @@ export default function OnboardingRequestModal({ isOpen, onClose, customerId }) 
             </div>
 
             {/* Hazır Paket Seçimi */}
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', background: 'var(--bg-app)', padding: '10px 14px', borderRadius: 'var(--radius-md)' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Hazır Paketler:</span>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', background: 'var(--bg-app)', padding: '10px 14px', borderRadius: 'var(--radius-md)' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', width: '100%', marginBottom: '2px' }}>
+                ⚡ Hazır Başlangıç Şablonları:
+              </span>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => handlePresetSelect('social')}
-                style={{ fontSize: '0.75rem' }}
+                style={{ fontSize: '0.74rem', padding: '4px 10px' }}
               >
-                Sosyal Medya Paketi
+                📱 Sosyal Medya
               </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => handlePresetSelect('ecommerce')}
-                style={{ fontSize: '0.75rem' }}
+                style={{ fontSize: '0.74rem', padding: '4px 10px' }}
               >
-                E-Ticaret Paketi
+                🛒 E-Ticaret
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => handlePresetSelect('seo')}
+                style={{ fontSize: '0.74rem', padding: '4px 10px' }}
+              >
+                🔍 SEO & Harita
               </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => handlePresetSelect('branding')}
-                style={{ fontSize: '0.75rem' }}
+                style={{ fontSize: '0.74rem', padding: '4px 10px' }}
               >
-                Kurumsal Kimlik Paketi
+                🎨 Kurumsal Kimlik
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => handlePresetSelect('full')}
+                style={{ fontSize: '0.74rem', padding: '4px 10px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 }}
+              >
+                🚀 360° Full Paket
               </button>
             </div>
 

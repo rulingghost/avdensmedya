@@ -16,6 +16,9 @@ import CommentsView from './components/views/CommentsView';
 import FilesView from './components/views/FilesView';
 import SettingsView from './components/views/SettingsView';
 import UsersView from './components/views/UsersView';
+import ContentCalendarView from './components/views/ContentCalendarView';
+import WhatsAppNotificationModal from './components/modals/WhatsAppNotificationModal';
+import PwaInstallPrompt from './components/common/PwaInstallPrompt';
 
 export default function App() {
   const {
@@ -27,6 +30,7 @@ export default function App() {
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
 
   // Oturum açılmamışsa doğrudan Login ekranı gösterilir (Madde 1)
   if (!isLoggedIn) {
@@ -65,6 +69,7 @@ export default function App() {
               {activePage === 'tasks' && <TasksView />}
               {activePage === 'files' && <FilesView />}
               {activePage === 'comments' && <CommentsView />}
+              {activePage === 'content-calendar' && <ContentCalendarView />}
             </>
           ) : (
             /* 2. Ajans Ekibi (Admin & Aracı) */
@@ -78,11 +83,16 @@ export default function App() {
               )}
 
               {activePage === 'customer-detail' && (
-                <CustomerDetailView />
+                <CustomerDetailView onOpenWhatsAppModal={() => setIsWhatsAppModalOpen(true)} />
               )}
 
               {activePage === 'tasks' && (
                 <TasksView />
+              )}
+
+              {/* Sosyal Medya & İçerik Takvimi (Madde 2 & 3) */}
+              {activePage === 'content-calendar' && (
+                <ContentCalendarView onOpenWhatsAppModal={() => setIsWhatsAppModalOpen(true)} />
               )}
 
               {/* Görev Şablonları Yöneticisi: SADECE Admin erişebilir */}
@@ -139,6 +149,15 @@ export default function App() {
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}
       />
+
+      {/* WhatsApp Bildirim & Onay Modalı (Madde 3) */}
+      <WhatsAppNotificationModal
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+      />
+
+      {/* PWA Mobil & Masaüstü Kurulum Banner'ı (Madde 7) */}
+      <PwaInstallPrompt />
     </div>
   );
 }

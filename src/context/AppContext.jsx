@@ -12,7 +12,8 @@ import {
   INITIAL_ACTIVITIES,
   INITIAL_NOTIFICATIONS,
   INITIAL_TEMPLATES,
-  INITIAL_ONBOARDING_REQUESTS
+  INITIAL_ONBOARDING_REQUESTS,
+  INITIAL_CONTENT_POSTS
 } from '../data/initialData';
 import {
   fetchNeonData,
@@ -48,8 +49,12 @@ import {
   neonDeleteUser,
   neonInsertOnboardingRequest,
   neonUpdateOnboardingRequest,
+  neonInsertContentPost,
+  neonUpdateContentPost,
+  neonDeleteContentPost,
   neonClearAllData
 } from '../services/neonService';
+import { triggerWebhook } from '../services/webhookService';
 
 const AppContext = createContext();
 
@@ -61,7 +66,12 @@ export function AppProvider({ children }) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          contentPosts: parsed.contentPosts || INITIAL_CONTENT_POSTS,
+          onboardingRequests: parsed.onboardingRequests || INITIAL_ONBOARDING_REQUESTS
+        };
       }
     } catch (e) {
       console.error('LocalStorage okunamadı:', e);
@@ -78,7 +88,8 @@ export function AppProvider({ children }) {
       activities: INITIAL_ACTIVITIES,
       notifications: INITIAL_NOTIFICATIONS,
       templates: INITIAL_TEMPLATES,
-      onboardingRequests: INITIAL_ONBOARDING_REQUESTS
+      onboardingRequests: INITIAL_ONBOARDING_REQUESTS,
+      contentPosts: INITIAL_CONTENT_POSTS
     };
   });
 
@@ -163,10 +174,14 @@ export function AppProvider({ children }) {
       }
 
       if (result.data) {
-        setData(result.data);
+        const mergedData = {
+          ...result.data,
+          contentPosts: result.data.contentPosts || []
+        };
+        setData(mergedData);
         setDbStatus('connected');
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(result.data));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedData));
         } catch (e) {}
 
         // Aktif kullanıcının güncel bilgilerini (avatar, unvan vb.) veritabanından gelen veriyle senkronize et
@@ -602,7 +617,10 @@ export function AppProvider({ children }) {
       completedAt: taskData.status === 'tamamlandi' ? new Date().toISOString() : null,
       completedBy: taskData.status === 'tamamlandi' ? currentUser.name : null,
       waitingForClient: Boolean(taskData.waitingForClient),
-      waitingReason: taskData.waitingReason || ''
+      waitingReason: taskData.waitingReason || '',
+      subtasks: taskData.subtasks || [],
+      recurring: taskData.recurring || 'none',
+      attachment: taskData.attachment || null
     };
 
     // Optimistic UI
@@ -668,10 +686,20 @@ export function AppProvider({ children }) {
     logActivity(task.customerId, `${currentUser.name} görevi sildi: "${task.title}"`);
   };
 
+  const toggleSubtask = (taskId, subtaskId) => {
+    const task = data.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const currentSubtasks = task.subtasks || [];
+    const updatedSubtasks = currentSubtasks.map(st =>
+      st.id === subtaskId ? { ...st, completed: !st.completed } : st
+    );
+    updateTask(taskId, { subtasks: updatedSubtasks });
+  };
+
   // -------------------------------------------------------------
   // MÜŞTERİ İŞLEMLERİ
   // -------------------------------------------------------------
-  const addCustomer = (customerData, applyTemplateId = null) => {
+  const addCustomer = (customerData, applyTemplateId = null, autoOnboarding = null) => {
     if (currentUser.role === 'musteri') return null;
 
     const newId = 'cust-' + Date.now();
@@ -760,20 +788,63 @@ export function AppProvider({ children }) {
       }
     }
 
+    // Şablona bağlı mantıksal başlangıç bilgi/belge talebi (Onboarding)
+    let newOnboardingRequest = null;
+    if (autoOnboarding && Array.isArray(autoOnboarding.items) && autoOnboarding.items.length > 0) {
+      const validItems = autoOnboarding.items.filter(it => it && it.label && it.label.trim());
+      if (validItems.length > 0) {
+        newOnboardingRequest = {
+          id: 'req-' + Date.now(),
+          customerId: newId,
+          customerName: newCustomer.companyName,
+          title: autoOnboarding.title || 'İşe Başlamak İçin Gerekli Bilgi ve Belgeler',
+          description: autoOnboarding.description || 'İşlerin başlayabilmesi için lütfen aşağıdaki alanları doldurunuz.',
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+          items: validItems.map((item, idx) => ({
+            id: `item-${Date.now()}-${idx}`,
+            label: item.label.trim(),
+            type: item.type || 'text',
+            required: item.required ?? true,
+            value: '',
+            isSubmitted: false
+          }))
+        };
+      }
+    }
+
     // Optimistic UI
     setData(prev => ({
       ...prev,
       customers: [newCustomer, ...prev.customers],
       tasks: [...templateTasks, ...prev.tasks],
-      users: newUsers
+      users: newUsers,
+      onboardingRequests: newOnboardingRequest
+        ? [newOnboardingRequest, ...(prev.onboardingRequests || [])]
+        : (prev.onboardingRequests || [])
     }));
 
     // Neon Veritabanına kaydet
     neonInsertCustomer(newCustomer).catch(console.error);
     templateTasks.forEach(t => neonInsertTask(t).catch(console.error));
+    if (newOnboardingRequest) {
+      neonInsertOnboardingRequest(newOnboardingRequest).catch(console.error);
+    }
 
     logActivity(newId, `${currentUser.name} yeni müşteri oluşturdu: ${newCustomer.companyName}`, 'customer_created');
+    if (newOnboardingRequest) {
+      logActivity(newId, `${currentUser.name} şablon başlangıç bilgi ve belge talebini müşteriye iletti (${newOnboardingRequest.items.length} talep).`, 'onboarding_created');
+    }
+
     addNotification('Yeni Müşteri Eklendi', `${newCustomer.companyName} başarıyla sisteme kaydedildi. Portal girişi aktif edildi.`, newId);
+    if (newOnboardingRequest) {
+      addNotification(
+        'İşe Başlama Talepleri İletildi',
+        `${newCustomer.companyName} projesi için ${newOnboardingRequest.items.length} adet başlangıç bilgi talebi müşteriye iletildi.`,
+        newId
+      );
+    }
 
     return newId;
   };
@@ -881,7 +952,9 @@ export function AppProvider({ children }) {
       files: prev.files.filter(f => f.customerId !== customerId),
       notes: prev.notes.filter(n => n.customerId !== customerId),
       comments: prev.comments.filter(cm => cm.customerId !== customerId),
-      users: prev.users.filter(u => u.customerId !== customerId)
+      users: prev.users.filter(u => u.customerId !== customerId),
+      contentPosts: (prev.contentPosts || []).filter(cp => cp.customerId !== customerId),
+      onboardingRequests: (prev.onboardingRequests || []).filter(o => o.customerId !== customerId)
     }));
 
     await neonDeleteCustomer(customerId).catch(console.error);
@@ -892,7 +965,7 @@ export function AppProvider({ children }) {
   // -------------------------------------------------------------
   // NOT İŞLEMLERİ
   // -------------------------------------------------------------
-  const addNote = (customerId, content, color = 'blue') => {
+  const addNote = (customerId, content, color = 'blue', noteType = 'note') => {
     const isAccessible = getAccessibleCustomers().some(c => c.id === customerId);
     if (!isAccessible) return;
 
@@ -904,6 +977,7 @@ export function AppProvider({ children }) {
       authorAvatar: currentUser.avatar,
       content,
       color,
+      noteType: noteType || 'note',
       createdAt: new Date().toISOString()
     };
 
@@ -913,7 +987,8 @@ export function AppProvider({ children }) {
     }));
 
     neonInsertNote(newNote).catch(console.error);
-    logActivity(customerId, `${currentUser.name} yeni not ekledi.`);
+    const typeLabel = noteType === 'call' ? 'telefon görüşmesi kaydı' : noteType === 'meeting' ? 'toplantı kaydı' : noteType === 'whatsapp' ? 'WhatsApp görüşme notu' : 'not';
+    logActivity(customerId, `${currentUser.name} yeni bir ${typeLabel} ekledi.`);
   };
 
   const deleteNote = (noteId) => {
@@ -1013,6 +1088,8 @@ export function AppProvider({ children }) {
       size: fileData.size || '1.5 MB',
       type: fileData.type || 'file',
       description: fileData.description || '',
+      url: fileData.url || '',
+      previewUrl: fileData.previewUrl || '',
       uploadedBy: currentUser.name,
       uploadedAt: new Date().toISOString()
     };
@@ -1114,16 +1191,14 @@ export function AppProvider({ children }) {
     neonMarkAllNotificationsRead().catch(console.error);
   };
 
-  // -------------------------------------------------------------
-  // ŞABLON İŞLEMLERİ
-  // -------------------------------------------------------------
-  const applyTemplateToCustomer = (customerId, templateId) => {
+  const applyTemplateToCustomer = (customerId, templateId, autoOnboarding = null) => {
     if (currentUser.role === 'musteri') return;
     const isAccessible = getAccessibleCustomers().some(c => c.id === customerId);
     if (!isAccessible) return;
 
     const template = data.templates.find(t => t.id === templateId);
     if (!template) return;
+    const customer = data.customers.find(c => c.id === customerId);
 
     const newTasks = template.taskItems.map((item, idx) => ({
       id: `task-${Date.now()}-${idx}`,
@@ -1144,14 +1219,56 @@ export function AppProvider({ children }) {
       waitingReason: ''
     }));
 
+    // İsteğe bağlı şablon başlangıç bilgi/belge talebi (Onboarding)
+    let newOnboardingRequest = null;
+    if (autoOnboarding && Array.isArray(autoOnboarding.items) && autoOnboarding.items.length > 0) {
+      const validItems = autoOnboarding.items.filter(it => it && it.label && it.label.trim());
+      if (validItems.length > 0) {
+        newOnboardingRequest = {
+          id: 'req-' + Date.now(),
+          customerId,
+          customerName: customer ? customer.companyName : 'Müşteri',
+          title: autoOnboarding.title || `${template.name} - Başlangıç Bilgi & Belge Talepleri`,
+          description: autoOnboarding.description || 'İşlerin başlayabilmesi için lütfen aşağıdaki alanları doldurunuz.',
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+          items: validItems.map((item, idx) => ({
+            id: `item-${Date.now()}-${idx}`,
+            label: item.label.trim(),
+            type: item.type || 'text',
+            required: item.required ?? true,
+            value: '',
+            isSubmitted: false
+          }))
+        };
+      }
+    }
+
     setData(prev => ({
       ...prev,
-      tasks: [...newTasks, ...prev.tasks]
+      tasks: [...newTasks, ...prev.tasks],
+      onboardingRequests: newOnboardingRequest
+        ? [newOnboardingRequest, ...(prev.onboardingRequests || [])]
+        : (prev.onboardingRequests || [])
     }));
 
     newTasks.forEach(t => neonInsertTask(t).catch(console.error));
+    if (newOnboardingRequest) {
+      neonInsertOnboardingRequest(newOnboardingRequest).catch(console.error);
+    }
+
     logActivity(customerId, `${currentUser.name} "${template.name}" şablonunu projeye uyguladı (${newTasks.length} görev).`);
     addNotification('Şablon Uygulandı', `${newTasks.length} adet görev projeye dahil edildi.`, customerId);
+
+    if (newOnboardingRequest) {
+      logActivity(customerId, `${currentUser.name} şablon başlangıç bilgi ve belge talebini müşteriye iletti (${newOnboardingRequest.items.length} talep).`);
+      addNotification(
+        'İşe Başlama Talepleri İletildi',
+        `${customer?.companyName || 'Müşteri'} projesi için ${newOnboardingRequest.items.length} adet başlangıç bilgi talebi müşteriye iletildi.`,
+        customerId
+      );
+    }
   };
 
   const addTemplate = (templateData) => {
@@ -1498,9 +1615,14 @@ export function AppProvider({ children }) {
     try {
       const parsed = JSON.parse(jsonString);
       if (parsed.customers && parsed.tasks) {
-        setData(parsed);
+        const fullParsed = {
+          ...parsed,
+          contentPosts: parsed.contentPosts || [],
+          onboardingRequests: parsed.onboardingRequests || []
+        };
+        setData(fullParsed);
         if (dbStatus === 'connected') {
-          initDatabaseToCloud(parsed);
+          initDatabaseToCloud(fullParsed);
         }
         return { success: true };
       } else {
@@ -1533,7 +1655,8 @@ export function AppProvider({ children }) {
       }],
       notifications: [],
       templates: data.templates,
-      onboardingRequests: []
+      onboardingRequests: [],
+      contentPosts: []
     };
     setData(emptyData);
     localStorage.removeItem(STORAGE_KEY);
@@ -1575,6 +1698,109 @@ export function AppProvider({ children }) {
     return data.customers;
   };
 
+  // -------------------------------------------------------------
+  // İÇERİK TAKVİMİ & SOSYAL MEDYA (MADDE 2)
+  // -------------------------------------------------------------
+  const addContentPost = (postData) => {
+    const customer = data.customers.find(c => c.id === postData.customerId);
+    const newPost = {
+      id: 'post-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+      createdAt: new Date().toISOString(),
+      customerName: customer ? customer.companyName : (postData.customerName || ''),
+      title: postData.title || '',
+      caption: postData.caption || '',
+      mediaUrl: postData.mediaUrl || '',
+      mediaType: postData.mediaType || 'image',
+      platform: postData.platform || 'instagram',
+      scheduledDate: postData.scheduledDate || new Date().toISOString(),
+      status: postData.status || 'onay_bekliyor',
+      clientFeedback: ''
+    };
+
+    setData(prev => ({
+      ...prev,
+      contentPosts: [newPost, ...(prev.contentPosts || [])]
+    }));
+
+    neonInsertContentPost(newPost).catch(console.error);
+
+    logActivity(newPost.customerId, `${customer?.companyName || 'Müşteri'} için "${newPost.title}" sosyal medya içeriği planlandı.`);
+    addNotification(
+      'Yeni İçerik Planlandı',
+      `"${newPost.title}" başlıklı sosyal medya içeriği onay için hazırlandı.`,
+      newPost.customerId
+    );
+
+    return newPost;
+  };
+
+  const updateContentPost = (id, updates) => {
+    setData(prev => ({
+      ...prev,
+      contentPosts: (prev.contentPosts || []).map(p => p.id === id ? { ...p, ...updates } : p)
+    }));
+
+    neonUpdateContentPost(id, updates).catch(console.error);
+  };
+
+  const deleteContentPost = (id) => {
+    setData(prev => ({
+      ...prev,
+      contentPosts: (prev.contentPosts || []).filter(p => p.id !== id)
+    }));
+
+    neonDeleteContentPost(id).catch(console.error);
+  };
+
+  const approveContentPost = (id) => {
+    const post = (data.contentPosts || []).find(p => p.id === id);
+    if (!post) return;
+
+    updateContentPost(id, { status: 'onaylandi' });
+    try {
+      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+    } catch (e) {}
+
+    logActivity(post.customerId, `"${post.title}" sosyal medya içeriği müşteri tarafından onaylandı.`);
+    addNotification(
+      'İçerik Onaylandı! 🎉',
+      `"${post.title}" içeriği onaylandı ve yayına hazır.`,
+      post.customerId
+    );
+
+    triggerWebhook('postApproved', {
+      postId: post.id,
+      title: post.title,
+      platform: post.platform,
+      scheduledDate: post.scheduledDate,
+      customerId: post.customerId,
+      customerName: post.customerName
+    }).catch(console.error);
+  };
+
+  const rejectContentPost = (id, clientFeedback) => {
+    const post = (data.contentPosts || []).find(p => p.id === id);
+    if (!post) return;
+
+    updateContentPost(id, { status: 'revize_istendi', clientFeedback });
+
+    logActivity(post.customerId, `"${post.title}" içeriği için revize istendi: ${clientFeedback}`);
+    addNotification(
+      'İçerik İçin Revize İstendi ⚠️',
+      `"${post.title}" için müşteri revize talep etti: "${clientFeedback}"`,
+      post.customerId
+    );
+
+    triggerWebhook('postRevision', {
+      postId: post.id,
+      title: post.title,
+      platform: post.platform,
+      clientFeedback,
+      customerId: post.customerId,
+      customerName: post.customerName
+    }).catch(console.error);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1604,6 +1830,7 @@ export function AppProvider({ children }) {
         addTask,
         updateTask,
         deleteTask,
+        toggleSubtask,
         addCustomer,
         updateCustomer,
         deleteCustomer,
@@ -1630,6 +1857,12 @@ export function AppProvider({ children }) {
         createOnboardingRequest,
         submitOnboardingData,
         submitWaitingTaskResponse,
+        // İçerik Takvimi Eylemleri (Madde 2)
+        addContentPost,
+        updateContentPost,
+        deleteContentPost,
+        approveContentPost,
+        rejectContentPost,
         exportDataAsJSON,
         importDataFromJSON,
         clearAllData,

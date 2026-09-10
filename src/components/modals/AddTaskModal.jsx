@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckSquare, Sparkles } from 'lucide-react';
+import { X, CheckSquare, Sparkles, Plus, Trash2, Repeat, Paperclip, ListChecks } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null, defaultCategoryId = null }) {
@@ -11,6 +11,12 @@ export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null
     : (accessibleCustomers[0]?.id || '');
 
   const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
+  const [subtasks, setSubtasks] = useState([]);
+  const [newSubtaskInput, setNewSubtaskInput] = useState('');
+  const [recurring, setRecurring] = useState('none');
+  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [attachmentName, setAttachmentName] = useState('');
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -27,11 +33,29 @@ export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null
 
   if (!isOpen) return null;
 
+  const handleAddSubtask = () => {
+    if (!newSubtaskInput.trim()) return;
+    setSubtasks(prev => [
+      ...prev,
+      { id: 'st-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4), title: newSubtaskInput.trim(), completed: false }
+    ]);
+    setNewSubtaskInput('');
+  };
+
+  const handleRemoveSubtask = (id) => {
+    setSubtasks(prev => prev.filter(s => s.id !== id));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
 
-    addTask(formData);
+    addTask({
+      ...formData,
+      subtasks,
+      recurring,
+      attachment: attachmentUrl.trim() ? { name: attachmentName.trim() || 'Ek Dosya/Bağlantı', url: attachmentUrl.trim() } : null
+    });
     onClose();
   };
 
@@ -138,7 +162,7 @@ export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
               <div className="form-group">
                 <label>Öncelik</label>
                 <select
@@ -150,6 +174,19 @@ export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null
                   <option value="normal">Normal</option>
                   <option value="yuksek">Yüksek</option>
                   <option value="acil">Acil ⚡</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Döngü / Tekrar</label>
+                <select
+                  className="form-select"
+                  value={recurring}
+                  onChange={(e) => setRecurring(e.target.value)}
+                >
+                  <option value="none">Tek Seferlik</option>
+                  <option value="weekly">🔄 Haftalık Tekrar</option>
+                  <option value="monthly">🔄 Aylık Tekrar</option>
                 </select>
               </div>
 
@@ -170,6 +207,100 @@ export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null
                   className="form-input"
                   value={formData.dueDate}
                   onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Alt Görevler (Checklist / Adım Adım Kontrol Listesi) */}
+            <div style={{ padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ListChecks size={16} color="var(--primary)" />
+                  <span>Alt Görevler / Kontrol Listesi ({subtasks.length})</span>
+                </label>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>İsteğe bağlı adım dökümü</span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: subtasks.length > 0 ? '10px' : '0' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Alt adım yazın (Örn: Pikseli siteye ekle) ve ekle'ye basın..."
+                  value={newSubtaskInput}
+                  onChange={(e) => setNewSubtaskInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddSubtask();
+                    }
+                  }}
+                  style={{ flex: 1, padding: '8px 12px', fontSize: '0.84rem' }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleAddSubtask}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  <Plus size={14} /> Ekle
+                </button>
+              </div>
+
+              {subtasks.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {subtasks.map((st, idx) => (
+                    <div
+                      key={st.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        backgroundColor: '#fff',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '0.84rem'
+                      }}
+                    >
+                      <span style={{ color: 'var(--text-main)' }}>
+                        <strong style={{ color: 'var(--primary)', marginRight: '6px' }}>{idx + 1}.</strong>
+                        {st.title}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSubtask(st.id)}
+                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '2px' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Dosya / Ekran Görüntüsü Eki */}
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem' }}>
+                <Paperclip size={14} color="var(--primary)" />
+                <span>Görev Eki (Dosya / Ekran Görüntüsü / Doküman URL)</span>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Ek başlığı (Örn: Reklam Taslağı PDF)"
+                  value={attachmentName}
+                  onChange={(e) => setAttachmentName(e.target.value)}
+                  style={{ fontSize: '0.84rem' }}
+                />
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="Dosya linki (https://... veya Drive/Canva)"
+                  value={attachmentUrl}
+                  onChange={(e) => setAttachmentUrl(e.target.value)}
+                  style={{ fontSize: '0.84rem' }}
                 />
               </div>
             </div>

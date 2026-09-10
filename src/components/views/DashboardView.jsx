@@ -15,7 +15,8 @@ import {
   Sparkles,
   ChevronRight,
   Check,
-  Building2
+  Building2,
+  Instagram
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -56,6 +57,12 @@ export default function DashboardView({ onOpenQuickAction }) {
   // Özet Filtreleri
   const todayTasks = relevantTasks.filter(t => !t.isCompleted && (t.dueDate === todayStr || t.startDate === todayStr));
   const waitingForClientTasks = relevantTasks.filter(t => !t.isCompleted && t.waitingForClient);
+
+  // Sosyal Medya Onay Bekleyen İçerikler
+  const pendingContentPosts = (data.contentPosts || []).filter(p => {
+    const isAccessible = accessibleCustomers.some(c => c.id === p.customerId);
+    return isAccessible && p.status === 'onay_bekliyor';
+  });
   const thisWeekTasks = relevantTasks.filter(t => !t.isCompleted && t.dueDate >= todayStr && t.dueDate <= next7DaysStr);
   const recentCompletedTasks = relevantTasks.filter(t => t.isCompleted).slice(0, 8);
 
@@ -229,10 +236,38 @@ export default function DashboardView({ onOpenQuickAction }) {
             {overdueTasks.length > 0 ? 'Acil aksiyon gerekli' : 'Geciken iş yok ✓'}
           </div>
         </div>
+
+        {/* 7. Sosyal Medya Onay Bekleyen */}
+        <div
+          className="card"
+          onClick={() => setActivePage('content-calendar')}
+          style={{
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            cursor: 'pointer',
+            transition: 'var(--transition)'
+          }}
+          title="Sosyal Medya & İçerik Takvimine Git"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>İçerik Onayı</span>
+            <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: '#fdf2f8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ec4899' }}>
+              <Instagram size={18} />
+            </div>
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: pendingContentPosts.length > 0 ? '#ec4899' : 'var(--text-main)', lineHeight: 1 }}>
+            {pendingContentPosts.length}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: pendingContentPosts.length > 0 ? '#db2777' : 'var(--text-muted)', fontWeight: 600 }}>
+            {pendingContentPosts.length > 0 ? `${pendingContentPosts.length} post onay bekliyor` : 'Tüm içerikler onaylı ✓'}
+          </div>
+        </div>
       </div>
 
       {/* ORTA BÖLÜM: YÖNETİCİ ÖZET EKRANI (Madde 25) & SON AKTİVİTELER (Madde 2/16) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+      <div className="dashboard-grid-two-col">
 
         {/* Sol: Yönetici Özet Alanı (Sekmeli Yapı) */}
         <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
@@ -247,7 +282,7 @@ export default function DashboardView({ onOpenQuickAction }) {
             </div>
 
             {/* Özet Sekmeleri */}
-            <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-app)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', background: 'var(--bg-app)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
               <button
                 className={`btn btn-sm ${activeSummaryTab === 'today' ? 'btn-primary' : ''}`}
                 style={{ fontSize: '0.78rem', padding: '6px 10px', background: activeSummaryTab === 'today' ? 'var(--primary)' : 'transparent', color: activeSummaryTab === 'today' ? '#ffffff' : 'var(--text-muted)' }}

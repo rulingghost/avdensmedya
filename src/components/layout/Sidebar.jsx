@@ -12,7 +12,8 @@ import {
   X,
   UserCog,
   LogOut,
-  UserCheck
+  UserCheck,
+  CalendarRange
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -84,7 +85,7 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
 
             <button
               className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`}
-              onClick={() => setActivePage('dashboard')}
+              onClick={() => handleNavClick('dashboard')}
             >
               <LayoutDashboard size={18} />
               <span>Dashboard</span>
@@ -92,7 +93,7 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
 
             <button
               className={`nav-item ${activePage === 'customers' || activePage === 'customer-detail' ? 'active' : ''}`}
-              onClick={() => setActivePage('customers')}
+              onClick={() => handleNavClick('customers')}
             >
               <Users size={18} />
               <span>Müşteriler</span>
@@ -101,11 +102,22 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
 
             <button
               className={`nav-item ${activePage === 'tasks' ? 'active' : ''}`}
-              onClick={() => setActivePage('tasks')}
+              onClick={() => handleNavClick('tasks')}
             >
               <CheckSquare size={18} />
               <span>Görevler</span>
               <span className="nav-badge">{activeTasks.length}</span>
+            </button>
+
+            <button
+              className={`nav-item ${activePage === 'content-calendar' ? 'active' : ''}`}
+              onClick={() => handleNavClick('content-calendar')}
+            >
+              <CalendarRange size={18} />
+              <span>İçerik Takvimi</span>
+              <span className="nav-badge" style={{ background: 'rgba(236, 72, 153, 0.15)', color: '#ec4899' }}>
+                {(data.contentPosts || []).filter(p => accessibleCustomerIds.has(p.customerId)).length}
+              </span>
             </button>
 
             {currentUser.role === 'admin' && (
@@ -123,7 +135,7 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
                   onClick={() => handleNavClick('users')}
                 >
                   <UserCheck size={18} />
-                  <span>Ekip &amp; Yetkililer</span>
+                  <span>Ekip & Yetkililer</span>
                   <span className="nav-badge" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }}>{data.users.length}</span>
                 </button>
               </>
@@ -131,7 +143,7 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
 
             <button
               className={`nav-item ${activePage === 'activities' ? 'active' : ''}`}
-              onClick={() => setActivePage('activities')}
+              onClick={() => handleNavClick('activities')}
             >
               <History size={18} />
               <span>Son Aktiviteler</span>
@@ -143,7 +155,7 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
 
                 <button
                   className={`nav-item ${activePage === 'settings' ? 'active' : ''}`}
-                  onClick={() => setActivePage('settings')}
+                  onClick={() => handleNavClick('settings')}
                 >
                   <Settings size={18} />
                   <span>Ayarlar & Veri</span>
@@ -157,7 +169,7 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
 
             <button
               className={`nav-item ${activePage === 'dashboard' || activePage === 'customer-detail' ? 'active' : ''}`}
-              onClick={() => setActivePage('dashboard')}
+              onClick={() => handleNavClick('dashboard')}
             >
               <LayoutDashboard size={18} />
               <span>Proje İlerleme Durumu</span>
@@ -165,15 +177,31 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
 
             <button
               className={`nav-item ${activePage === 'tasks' ? 'active' : ''}`}
-              onClick={() => setActivePage('tasks')}
+              onClick={() => handleNavClick('tasks')}
             >
               <CheckSquare size={18} />
               <span>Yapılan & Bekleyen İşler</span>
             </button>
 
             <button
+              className={`nav-item ${activePage === 'content-calendar' ? 'active' : ''}`}
+              onClick={() => handleNavClick('content-calendar')}
+            >
+              <CalendarRange size={18} />
+              <span>İçerik Takvimi & Onaylar</span>
+              {(() => {
+                const myPending = (data.contentPosts || []).filter(p => p.customerId === currentUser.customerId && p.status === 'onay_bekliyor').length;
+                return myPending > 0 ? (
+                  <span className="nav-badge" style={{ background: '#fef3c7', color: '#b45309', fontWeight: 700 }}>
+                    {myPending} Bekleyen
+                  </span>
+                ) : null;
+              })()}
+            </button>
+
+            <button
               className={`nav-item ${activePage === 'files' ? 'active' : ''}`}
-              onClick={() => setActivePage('files')}
+              onClick={() => handleNavClick('files')}
             >
               <FolderOpen size={18} />
               <span>Proje Dosyaları</span>
@@ -181,7 +209,7 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
 
             <button
               className={`nav-item ${activePage === 'comments' ? 'active' : ''}`}
-              onClick={() => setActivePage('comments')}
+              onClick={() => handleNavClick('comments')}
             >
               <MessageSquareText size={18} />
               <span>Geri Bildirim / Yorum</span>
@@ -196,7 +224,7 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
           <div
             className="user-snippet"
             onClick={onOpenEditProfile}
-            style={{ flex: 1, cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.15s' }}
+            style={{ flex: 1, minWidth: 0, cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.15s' }}
             title="Profili Düzenlemek İçin Tıklayın"
           >
             <img

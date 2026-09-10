@@ -12,15 +12,21 @@ import {
   Trash2,
   Edit2,
   Save,
-  Check
+  Check,
+  ListChecks,
+  Repeat,
+  Paperclip,
+  Plus,
+  ExternalLink
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export default function TaskDetailModal({ isOpen, onClose, task }) {
-  const { data, updateTask, deleteTask, toggleTask, currentUser, getAccessibleCustomers } = useApp();
+  const { data, updateTask, deleteTask, toggleTask, toggleSubtask, currentUser, getAccessibleCustomers } = useApp();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   if (!isOpen || !task) return null;
@@ -71,7 +77,10 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
       status: currentTask.status,
       dueDate: currentTask.dueDate,
       waitingForClient: currentTask.waitingForClient,
-      waitingReason: currentTask.waitingReason || ''
+      waitingReason: currentTask.waitingReason || '',
+      recurring: currentTask.recurring || 'none',
+      subtasks: currentTask.subtasks ? [...currentTask.subtasks] : [],
+      attachment: currentTask.attachment ? { ...currentTask.attachment } : null
     });
     setIsEditing(true);
   };
@@ -84,6 +93,23 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
       isCompleted: editData.status === 'tamamlandi'
     });
     setIsEditing(false);
+  };
+
+  const handleAddInlineSubtask = () => {
+    if (!newSubtaskTitle.trim()) return;
+    const newSt = {
+      id: 'st-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+      title: newSubtaskTitle.trim(),
+      completed: false
+    };
+    const updated = [...(currentTask.subtasks || []), newSt];
+    updateTask(currentTask.id, { subtasks: updated });
+    setNewSubtaskTitle('');
+  };
+
+  const handleDeleteSubtask = (stId) => {
+    const updated = (currentTask.subtasks || []).filter(s => s.id !== stId);
+    updateTask(currentTask.id, { subtasks: updated });
   };
 
   const handleDelete = () => {
@@ -198,7 +224,7 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
                 <div className="form-group">
                   <label>Öncelik</label>
                   <select
@@ -228,12 +254,134 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
                 </div>
 
                 <div className="form-group">
+                  <label>Döngü / Tekrar</label>
+                  <select
+                    className="form-select"
+                    value={editData.recurring || 'none'}
+                    onChange={(e) => setEditData({ ...editData, recurring: e.target.value })}
+                  >
+                    <option value="none">Tek Seferlik</option>
+                    <option value="weekly">🔄 Haftalık</option>
+                    <option value="monthly">🔄 Aylık</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
                   <label>Son Tarih</label>
                   <input
                     type="date"
                     className="form-input"
                     value={editData.dueDate}
                     onChange={(e) => setEditData({ ...editData, dueDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Alt Görevler (Edit Modu) */}
+              <div style={{ padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ListChecks size={16} color="var(--primary)" />
+                    <span>Alt Görevler ({editData.subtasks?.length || 0})</span>
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: editData.subtasks?.length > 0 ? '10px' : '0' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Yeni alt adım yazın..."
+                    value={newSubtaskTitle}
+                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newSubtaskTitle.trim()) {
+                          setEditData({
+                            ...editData,
+                            subtasks: [...(editData.subtasks || []), { id: 'st-' + Date.now(), title: newSubtaskTitle.trim(), completed: false }]
+                          });
+                          setNewSubtaskTitle('');
+                        }
+                      }
+                    }}
+                    style={{ flex: 1, padding: '8px 12px', fontSize: '0.84rem' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      if (newSubtaskTitle.trim()) {
+                        setEditData({
+                          ...editData,
+                          subtasks: [...(editData.subtasks || []), { id: 'st-' + Date.now(), title: newSubtaskTitle.trim(), completed: false }]
+                        });
+                        setNewSubtaskTitle('');
+                      }
+                    }}
+                  >
+                    <Plus size={14} /> Ekle
+                  </button>
+                </div>
+
+                {editData.subtasks && editData.subtasks.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {editData.subtasks.map((st, idx) => (
+                      <div
+                        key={st.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '6px 10px',
+                          backgroundColor: '#fff',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-subtle)',
+                          fontSize: '0.84rem'
+                        }}
+                      >
+                        <span><strong style={{ color: 'var(--primary)', marginRight: '6px' }}>{idx + 1}.</strong>{st.title}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditData({ ...editData, subtasks: editData.subtasks.filter(s => s.id !== st.id) })}
+                          style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '2px' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Ek Dosya / Link (Edit Modu) */}
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem' }}>
+                  <Paperclip size={14} color="var(--primary)" />
+                  <span>Görev Eki (Dosya / Doküman URL)</span>
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Ek adı (Örn: Tasarım PDF)"
+                    value={editData.attachment?.name || ''}
+                    onChange={(e) => setEditData({
+                      ...editData,
+                      attachment: { ...(editData.attachment || {}), name: e.target.value }
+                    })}
+                    style={{ fontSize: '0.84rem' }}
+                  />
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="URL (https://...)"
+                    value={editData.attachment?.url || ''}
+                    onChange={(e) => setEditData({
+                      ...editData,
+                      attachment: { ...(editData.attachment || {}), url: e.target.value }
+                    })}
+                    style={{ fontSize: '0.84rem' }}
                   />
                 </div>
               </div>
@@ -274,7 +422,7 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
         ) : (
           /* Görüntüleme Modu (Madde 10) */
           <div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
               {/* Açıklama */}
               <div>
@@ -302,7 +450,7 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
               )}
 
               {/* Parametre Grid'i */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', backgroundColor: 'var(--bg-app)', padding: '16px', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px', backgroundColor: 'var(--bg-app)', padding: '16px', borderRadius: 'var(--radius-md)' }}>
                 <div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Kategori:</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
@@ -338,8 +486,20 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Başlangıç Tarihi:</span>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{currentTask.startDate || '—'}</div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Döngü / Tekrar:</span>
+                  <div style={{ marginTop: '2px' }}>
+                    {currentTask.recurring === 'weekly' ? (
+                      <span className="badge badge-tamamlandi" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Repeat size={12} /> Haftalık Tekrar
+                      </span>
+                    ) : currentTask.recurring === 'monthly' ? (
+                      <span className="badge badge-tamamlandi" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Repeat size={12} /> Aylık Tekrar
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Tek Seferlik</span>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -347,6 +507,153 @@ export default function TaskDetailModal({ isOpen, onClose, task }) {
                   <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{currentTask.dueDate || '—'}</div>
                 </div>
               </div>
+
+              {/* Alt Görevler (Kontrol Listesi / Checklist) */}
+              {(() => {
+                const subtasks = currentTask.subtasks || [];
+                const completedSubtasks = subtasks.filter(s => s.completed).length;
+                const percent = subtasks.length > 0 ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
+
+                return (
+                  <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ListChecks size={18} color="var(--primary)" />
+                        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                          Alt Görevler / Kontrol Listesi
+                        </h4>
+                        {subtasks.length > 0 && (
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: percent === 100 ? '#16a34a' : 'var(--primary)', backgroundColor: percent === 100 ? '#dcfce7' : 'var(--primary-light)', padding: '2px 8px', borderRadius: '12px' }}>
+                            {completedSubtasks}/{subtasks.length} ({percent}%)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {subtasks.length > 0 && (
+                      <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-subtle)', borderRadius: '3px', overflow: 'hidden', marginBottom: '12px' }}>
+                        <div style={{ width: `${percent}%`, height: '100%', backgroundColor: percent === 100 ? 'var(--success)' : 'var(--primary)', transition: 'width 0.3s ease' }} />
+                      </div>
+                    )}
+
+                    {subtasks.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: canEditOrDelete ? '12px' : '0' }}>
+                        {subtasks.map((st, idx) => (
+                          <div
+                            key={st.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '8px 12px',
+                              backgroundColor: '#ffffff',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border-subtle)',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                            }}
+                          >
+                            <div
+                              onClick={() => canEditOrDelete && toggleSubtask(currentTask.id, st.id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                cursor: canEditOrDelete ? 'pointer' : 'default',
+                                flex: 1
+                              }}
+                            >
+                              <div
+                                className={`custom-checkbox ${st.completed ? 'checked' : ''}`}
+                                style={{ width: 18, height: 18 }}
+                              >
+                                {st.completed && <Check size={12} strokeWidth={3} />}
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: '0.88rem',
+                                  color: st.completed ? 'var(--text-muted)' : 'var(--text-main)',
+                                  textDecoration: st.completed ? 'line-through' : 'none'
+                                }}
+                              >
+                                {st.title}
+                              </span>
+                            </div>
+                            {canEditOrDelete && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSubtask(st.id)}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                                title="Alt görevi sil"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: canEditOrDelete ? '10px' : '0' }}>
+                        Henüz alt görev veya kontrol adımı eklenmemiş.
+                      </p>
+                    )}
+
+                    {canEditOrDelete && (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Yeni alt adım ekle (Enter'a bas)..."
+                          value={newSubtaskTitle}
+                          onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddInlineSubtask();
+                            }
+                          }}
+                          style={{ flex: 1, padding: '7px 12px', fontSize: '0.84rem' }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={handleAddInlineSubtask}
+                        >
+                          <Plus size={14} /> Ekle
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Görev Eki / Doküman URL */}
+              {currentTask.attachment?.url && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: 34, height: 34, borderRadius: '8px', backgroundColor: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
+                      <Paperclip size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#166534' }}>
+                        {currentTask.attachment.name || 'Görevin Ek Dosyası'}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#15803d', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {currentTask.attachment.url}
+                      </div>
+                    </div>
+                  </div>
+                  <a
+                    href={currentTask.attachment.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px' }}
+                  >
+                    <span>Aç / İndir</span>
+                    <ExternalLink size={13} />
+                  </a>
+                </div>
+              )}
 
               {/* Tamamlama Bilgisi */}
               {currentTask.isCompleted && (

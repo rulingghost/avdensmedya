@@ -12,7 +12,10 @@ import {
   Calendar,
   Check,
   Tag,
-  User
+  User,
+  ListChecks,
+  Repeat,
+  Paperclip
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import TaskDetailModal from '../modals/TaskDetailModal';
@@ -235,6 +238,9 @@ export default function TasksView() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {tasks.map((task) => {
                   const customer = data.customers.find(c => c.id === task.customerId);
+                  const subtasks = task.subtasks || [];
+                  const completedSubtasksCount = subtasks.filter(s => s.completed).length;
+
                   return (
                     <div
                       key={task.id}
@@ -300,6 +306,24 @@ export default function TasksView() {
                               }}
                             >
                               🏢 {customer.companyName}
+                            </span>
+                          )}
+
+                          {task.recurring && task.recurring !== 'none' && (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '2px 8px', borderRadius: 'var(--radius-sm)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <Repeat size={11} /> {task.recurring === 'weekly' ? 'Haftalık' : 'Aylık'}
+                            </span>
+                          )}
+
+                          {subtasks.length > 0 && (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: completedSubtasksCount === subtasks.length ? '#16a34a' : '#4f46e5', backgroundColor: completedSubtasksCount === subtasks.length ? '#dcfce7' : '#eef2ff', padding: '2px 8px', borderRadius: 'var(--radius-sm)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <ListChecks size={11} /> {completedSubtasksCount}/{subtasks.length}
+                            </span>
+                          )}
+
+                          {task.attachment?.url && (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#059669', backgroundColor: '#ecfdf5', padding: '2px 8px', borderRadius: 'var(--radius-sm)', display: 'inline-flex', alignItems: 'center', gap: '3px' }} title={task.attachment.name || 'Ek dosya mevcut'}>
+                              <Paperclip size={11} /> Ek
                             </span>
                           )}
 

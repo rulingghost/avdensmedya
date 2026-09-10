@@ -104,7 +104,7 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
         {/* Hızlı İşlem Butonu (Admin ve Aracı için) */}
         {currentUser.role !== 'musteri' && (
           <button
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary btn-sm navbar-quick-action"
             onClick={onOpenQuickAction}
             title="Yeni müşteri, görev veya not ekle"
           >
@@ -209,7 +209,7 @@ export default function Navbar({ onOpenQuickAction, onToggleSidebar, onOpenEditP
               }}
               style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(56, 189, 248, 0.4)' }}
             />
-            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+            <div className="navbar-user-text" style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.2 }}>
                 {currentUser.name}
               </span>

@@ -9,6 +9,7 @@ export default function AddFileModal({ isOpen, onClose, customerId }) {
   const [category, setCategory] = useState('Logo');
   const [description, setDescription] = useState('');
   const [fileSize, setFileSize] = useState('2.5 MB');
+  const [fileUrl, setFileUrl] = useState('');
   const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
   if (!isOpen) return null;
@@ -25,7 +26,9 @@ export default function AddFileModal({ isOpen, onClose, customerId }) {
       category,
       description,
       size: fileSize,
-      type: ext
+      type: ext,
+      url: fileUrl || undefined,
+      previewUrl: fileUrl || undefined
     });
 
     onClose();
@@ -67,7 +70,7 @@ export default function AddFileModal({ isOpen, onClose, customerId }) {
               <input
                 type="text"
                 className="form-input"
-                placeholder="Örn: Yeni_Logo_Vektorel.svg veya Reklam_Plan.pdf"
+                placeholder="Örn: Yeni_Logo_Vektorel.svg veya Reklam_Gorseli.png"
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value)}
                 required
@@ -76,19 +79,18 @@ export default function AddFileModal({ isOpen, onClose, customerId }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="form-group">
-                <label>Dosya Kategorisi *</label>
+                <label>Dosya Kategorisi / Klasör *</label>
                 <select
                   className="form-select"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                 >
-                  <option value="Logo">Logo</option>
-                  <option value="Kurumsal Kimlik">Kurumsal Kimlik</option>
-                  <option value="Sözleşme">Sözleşme</option>
-                  <option value="Reklam Görselleri">Reklam Görselleri</option>
-                  <option value="Ürün Fotoğrafları">Ürün Fotoğrafları</option>
-                  <option value="Rapor">Rapor</option>
-                  <option value="Diğer">Diğer</option>
+                  <option value="Logo">Logolar & Kurumsal Kimlik</option>
+                  <option value="Sözleşme">Sözleşmeler & Resmi Evrak</option>
+                  <option value="Reklam Görselleri">Reklam Materyalleri</option>
+                  <option value="Ürün Fotoğrafları">Ürün & Medya Arşivi</option>
+                  <option value="Rapor">Fatura & Raporlar</option>
+                  <option value="Diğer">Diğer Dosyalar</option>
                 </select>
               </div>
 
@@ -101,6 +103,17 @@ export default function AddFileModal({ isOpen, onClose, customerId }) {
                   onChange={(e) => setFileSize(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label>Dosya / Görsel Bağlantısı (URL - Opsiyonel)</label>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="https://... (Önizleme ve doğrudan indirme için)"
+                value={fileUrl}
+                onChange={(e) => setFileUrl(e.target.value)}
+              />
             </div>
 
             <div className="form-group">

@@ -9,9 +9,12 @@ import {
   Trash2,
   RefreshCw,
   UserCheck,
-  ArrowRight
+  ArrowRight,
+  Webhook,
+  Send
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { getWebhookConfig, saveWebhookConfig, triggerWebhook } from '../../services/webhookService';
 
 export default function SettingsView() {
   const {
@@ -26,10 +29,40 @@ export default function SettingsView() {
 
   const fileInputRef = useRef(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+  const [webhookConfig, setWebhookConfig] = useState(() => getWebhookConfig());
+  const [testingWebhook, setTestingWebhook] = useState(false);
 
   const showNotification = (message, type = 'success') => {
     setFeedback({ message, type });
     setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
+  };
+
+  const handleSaveWebhook = (e) => {
+    e.preventDefault();
+    const res = saveWebhookConfig(webhookConfig);
+    if (res.success) {
+      showNotification('Webhook ayarları başarıyla kaydedildi!', 'success');
+    } else {
+      showNotification('Hata: ' + res.error, 'error');
+    }
+  };
+
+  const handleTestWebhook = async () => {
+    if (!webhookConfig.url) {
+      showNotification('Lütfen önce bir Webhook URL adresi giriniz.', 'warning');
+      return;
+    }
+    setTestingWebhook(true);
+    const res = await triggerWebhook('test.ping', {
+      message: 'AVDENS WORK Webhook Test Başarılı!',
+      timestamp: new Date().toISOString()
+    });
+    setTestingWebhook(false);
+    if (res.success) {
+      showNotification('Test isteği başarıyla iletildi (HTTP 200 OK)!', 'success');
+    } else {
+      showNotification('Test başarısız: ' + (res.error || res.statusText || 'Bağlanılamadı'), 'error');
+    }
   };
 
   const handleFileChange = (e) => {
@@ -134,6 +167,10 @@ export default function SettingsView() {
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Hesap &amp; Dosya</span>
             <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{data.credentials.length + data.files.length} Adet</div>
           </div>
+          <div style={{ padding: '12px', background: 'var(--bg-app)', borderRadius: 'var(--radius-sm)' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>İçerik Takvimi</span>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ec4899' }}>{(data.contentPosts || []).length} Gönderi</div>
+          </div>
         </div>
 
         {/* Ekip Yönetimine Hızlı Geçiş */}
@@ -190,7 +227,125 @@ export default function SettingsView() {
         </div>
       </div>
 
-      {/* 3. SIFIRLAMA / TEMİZLEME BÖLÜMÜ */}
+      {/* 3. WEBHOOK & OTOMASYON ENTEGRASYONU (Madde 3) */}
+      <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Webhook size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>
+                Webhook &amp; Otomasyon Entegrasyonu
+              </h3>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Make.com, Zapier veya n8n ile içerik onaylarını ve görev tamamlanmalarını anlık tetikleyin
+              </span>
+            </div>
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.86rem', fontWeight: 700 }}>
+            <input
+              type="checkbox"
+              checked={webhookConfig.enabled}
+              onChange={(e) => setWebhookConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+            />
+            <span>Webhook Aktif</span>
+          </label>
+        </div>
+
+        <form onSubmit={handleSaveWebhook} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label className="form-label" style={{ fontSize: '0.84rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+              Webhook Endpoint URL (POST)
+            </label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="https://hook.eu1.make.com/... veya https://n8n.siteniz.com/webhook/..."
+                value={webhookConfig.url}
+                onChange={(e) => setWebhookConfig(prev => ({ ...prev, url: e.target.value }))}
+                style={{ flex: 1, padding: '10px 12px' }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleTestWebhook}
+                disabled={testingWebhook || !webhookConfig.url}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                <Send size={15} />
+                <span>{testingWebhook ? 'Test Ediliyor...' : 'Bağlantıyı Test Et'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Olay Filtreleri */}
+          <div>
+            <label className="form-label" style={{ fontSize: '0.84rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+              Tetiklenecek Olaylar (Events):
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', fontSize: '0.82rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={webhookConfig.events?.postApproved ?? true}
+                  onChange={(e) => setWebhookConfig(prev => ({
+                    ...prev,
+                    events: { ...prev.events, postApproved: e.target.checked }
+                  }))}
+                />
+                <span>Müşteri Gönderiyi Onayladığında</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={webhookConfig.events?.postRevision ?? true}
+                  onChange={(e) => setWebhookConfig(prev => ({
+                    ...prev,
+                    events: { ...prev.events, postRevision: e.target.checked }
+                  }))}
+                />
+                <span>Müşteri Revize İstediğinde</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={webhookConfig.events?.taskCompleted ?? true}
+                  onChange={(e) => setWebhookConfig(prev => ({
+                    ...prev,
+                    events: { ...prev.events, taskCompleted: e.target.checked }
+                  }))}
+                />
+                <span>Görev Tamamlandığında</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={webhookConfig.events?.onboardingCompleted ?? true}
+                  onChange={(e) => setWebhookConfig(prev => ({
+                    ...prev,
+                    events: { ...prev.events, onboardingCompleted: e.target.checked }
+                  }))}
+                />
+                <span>Onboarding Formu Doldurulduğunda</span>
+              </label>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+            <button type="submit" className="btn btn-primary" style={{ padding: '8px 18px', fontWeight: 700 }}>
+              <span>Webhook Ayarlarını Kaydet</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* 4. SIFIRLAMA / TEMİZLEME BÖLÜMÜ */}
       <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--danger)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div>

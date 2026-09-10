@@ -30,14 +30,28 @@ import {
   Lock,
   RefreshCw,
   Send,
-  Edit2
+  Edit2,
+  Users
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import AddCredentialModal from '../modals/AddCredentialModal';
 import AddFileModal from '../modals/AddFileModal';
 import OnboardingRequestModal from '../modals/OnboardingRequestModal';
+import AddContentPostModal from '../modals/AddContentPostModal';
+import InstagramGridPreview from './InstagramGridPreview';
 
-export default function CustomerDetailView() {
+export default function CustomerDetailView({ onOpenWhatsAppModal }) {
+  const cleanWaPhone = (phone) => {
+    if (!phone) return '';
+    let digits = phone.replace(/\D/g, '');
+    if (digits.startsWith('0')) {
+      digits = '90' + digits.substring(1);
+    } else if (!digits.startsWith('90') && digits.length === 10) {
+      digits = '90' + digits;
+    }
+    return digits;
+  };
+
   const {
     data,
     selectedCustomerId,
@@ -54,7 +68,8 @@ export default function CustomerDetailView() {
     deleteFile,
     assignPartnerToCustomer,
     updateCustomerPortalAccess,
-    deleteCustomer
+    deleteCustomer,
+    updateCustomer
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'tasks' | 'credentials' | 'files' | 'notes' | 'activities' | 'onboarding'
@@ -74,14 +89,18 @@ export default function CustomerDetailView() {
   const [editingCredential, setEditingCredential] = useState(null);
   const [isFileModalOpen, setIsFileModalOpen] = useState(false);
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
+  const [isAddPostModalOpen, setIsAddPostModalOpen] = useState(false);
 
-  // Not formu
+  // Not & Görüşme Günlüğü Formu (Madde 5)
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteColor, setNewNoteColor] = useState('blue');
+  const [newNoteType, setNewNoteType] = useState('call'); // 'call' | 'meeting' | 'whatsapp' | 'note'
+  const [selectedNoteFilter, setSelectedNoteFilter] = useState('all');
 
   // Müşteri verileri (Katı Yetki Denetimi)
   const accessibleCustomers = getAccessibleCustomers();
   const customer = accessibleCustomers.find(c => c.id === selectedCustomerId) || (currentUser.role === 'musteri' ? accessibleCustomers[0] : null);
+  const customerContentPosts = (data.contentPosts || []).filter(p => p.customerId === customer?.id);
 
   if (!customer) {
     return (
@@ -128,15 +147,23 @@ export default function CustomerDetailView() {
     if (!editPortalEmail.trim() || !editPortalPassword.trim()) return;
     const res = await updateCustomerPortalAccess(customer.id, {
       email: editPortalEmail,
-      password: editPortalPassword,
-      name: customer.contactPerson
+      password: editPortalPassword
     });
     if (res.success) {
+      setPortalFeedback('Portal giriş bilgileri başarıyla güncellendi.');
       setIsEditingPortalAccess(false);
-      setPortalFeedback('Portal giriş bilgileri başarıyla güncellendi!');
-      setTimeout(() => setPortalFeedback(''), 4000);
+      setTimeout(() => setPortalFeedback(''), 3000);
     } else {
-      alert(res.message || 'Portal bilgileri güncellenemedi.');
+      alert(res.error || 'Portal erişimi güncellenirken hata oluştu.');
+    }
+  };
+
+  const handleTogglePortalStatus = async () => {
+    const newStatus = !customer.portalAccess;
+    const res = await updateCustomerPortalAccess(customer.id, { portalAccess: newStatus });
+    if (res.success) {
+      setPortalFeedback(`Portal erişimi ${newStatus ? 'aktif edildi' : 'kapatıldı'}.`);
+      setTimeout(() => setPortalFeedback(''), 3000);
     }
   };
 
@@ -156,11 +183,11 @@ export default function CustomerDetailView() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Yeni not ekleme
+  // Yeni not / görüşme kaydı ekleme
   const handleAddNote = (e) => {
     e.preventDefault();
     if (!newNoteContent.trim()) return;
-    addNote(customer.id, newNoteContent, newNoteColor);
+    addNote(customer.id, newNoteContent, newNoteColor, newNoteType);
     setNewNoteContent('');
   };
 
@@ -273,10 +300,10 @@ export default function CustomerDetailView() {
             </div>
 
             {/* Hızlı Sosyal Medya ve WhatsApp Butonları */}
-            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
               {customer.whatsapp && (
                 <a
-                  href={`https://wa.me/${customer.whatsapp.replace(/[^0-9]/g, '')}`}
+                  href={`https://wa.me/${cleanWaPhone(customer.whatsapp)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="btn btn-secondary btn-sm"
@@ -286,9 +313,29 @@ export default function CustomerDetailView() {
                   <span>WhatsApp Hattı</span>
                 </a>
               )}
+              {onOpenWhatsAppModal && (
+                <button
+                  type="button"
+                  onClick={onOpenWhatsAppModal}
+                  className="btn btn-sm"
+                  style={{
+                    backgroundColor: '#25D366',
+                    borderColor: '#25D366',
+                    color: '#fff',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="Müşteriye şablonlu WhatsApp bildirimi gönder"
+                >
+                  <Send size={14} />
+                  <span>WhatsApp Bildirimi Gönder</span>
+                </button>
+              )}
               {customer.website && (
                 <a
-                  href={customer.website}
+                  href={customer.website.startsWith('http') ? customer.website : `https://${customer.website}`}
                   target="_blank"
                   rel="noreferrer"
                   className="btn btn-secondary btn-sm"
@@ -334,6 +381,97 @@ export default function CustomerDetailView() {
             />
           </div>
         </div>
+
+        {/* PROJE AŞAMALARI YOL HARİTASI (Madde 5) */}
+        {(() => {
+          const currentStageKey = customer.stage || (
+            progress.percentage === 100 ? 'reporting' :
+            progress.percentage >= 40 ? 'active_ops' :
+            customerTasks.length > 0 ? 'setup' : 'onboarding'
+          );
+
+          const stages = [
+            { key: 'onboarding', number: 1, title: '1. Başlangıç & Evrak', desc: 'Logo, şifre ve bilgi alımı' },
+            { key: 'setup', number: 2, title: '2. Kurulum & Hazırlık', desc: 'Sistem ve altyapı kurulumu' },
+            { key: 'active_ops', number: 3, title: '3. Aktif Operasyon', desc: 'İçerik, tasarım ve reklamlar' },
+            { key: 'reporting', number: 4, title: '4. Raporlama & Büyüme', desc: 'Analiz ve aylık raporlar' }
+          ];
+
+          const stageOrder = ['onboarding', 'setup', 'active_ops', 'reporting'];
+          const currentStageIndex = stageOrder.indexOf(currentStageKey);
+
+          const handleStageChange = (newStage) => {
+            if (currentUser.role === 'musteri') return;
+            updateCustomer(customer.id, { stage: newStage });
+          };
+
+          return (
+            <div style={{ marginTop: '10px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  PROJE AŞAMASI (YOL HARİTASI)
+                </span>
+                {currentUser.role !== 'musteri' && (
+                  <span style={{ fontSize: '0.74rem', color: 'var(--primary)', fontWeight: 600 }}>
+                    Aşama değiştirmek için karta tıklayabilirsiniz ↗
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                {stages.map((st, idx) => {
+                  const isPast = idx < currentStageIndex;
+                  const isCurrent = idx === currentStageIndex;
+                  return (
+                    <div
+                      key={st.key}
+                      onClick={() => handleStageChange(st.key)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: isCurrent ? 'var(--primary-light)' : isPast ? '#f0fdf4' : 'var(--bg-app)',
+                        border: isCurrent ? '2px solid var(--primary)' : isPast ? '1px solid #bbf7d0' : '1px solid var(--border-color)',
+                        cursor: currentUser.role !== 'musteri' ? 'pointer' : 'default',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isCurrent ? '0 2px 8px rgba(37, 99, 235, 0.12)' : 'none'
+                      }}
+                      title={currentUser.role !== 'musteri' ? `Aşamayı "${st.title}" olarak ayarla` : undefined}
+                    >
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          backgroundColor: isPast ? '#16a34a' : isCurrent ? 'var(--primary)' : 'var(--border-subtle)',
+                          color: isPast || isCurrent ? '#ffffff' : 'var(--text-muted)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: '0.8rem',
+                          flexShrink: 0
+                        }}
+                      >
+                        {isPast ? <Check size={16} strokeWidth={3} /> : st.number}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: isCurrent ? 'var(--primary)' : isPast ? '#166534' : 'var(--text-muted)' }}>
+                          {st.title}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: isCurrent ? 'var(--text-main)' : isPast ? '#15803d' : 'var(--text-muted)' }}>
+                          {st.desc}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 6. MÜŞTERİ İÇERİSİNDE SEKME YAPISI (Madde 6) */}
@@ -345,7 +483,8 @@ export default function CustomerDetailView() {
           { id: 'files', label: `4. Dosyalar (${customerFiles.length})`, icon: UploadCloud },
           { id: 'notes', label: `5. Notlar (${customerNotes.length})`, icon: FileText },
           { id: 'activities', label: `6. Aktivite Geçmişi`, icon: History },
-          { id: 'onboarding', label: `7. Başlangıç Talepleri (${customerOnboardingRequests.length})`, icon: Sparkles }
+          { id: 'onboarding', label: `7. Başlangıç Talepleri (${customerOnboardingRequests.length})`, icon: Sparkles },
+          { id: 'content-calendar', label: `8. İçerik Takvimi (${customerContentPosts.length})`, icon: Instagram }
         ].map((tab) => {
           const Icon = tab.icon;
           return (
@@ -1111,24 +1250,72 @@ export default function CustomerDetailView() {
         </div>
       )}
 
-      {/* SEKME 5: NOTLAR (Madde 13) */}
+      {/* SEKME 5: GÖRÜŞME KAYITLARI & NOTLAR (Madde 5) */}
       {activeTab === 'notes' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Müşteri Özel Notları</h3>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              Ajans ve aracı ekibinin müşteri hakkında aldığı kritik notlar.
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Görüşme Kayıtları &amp; Müşteri Notları</h3>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Telefon görüşmeleri, müşteri toplantıları, WhatsApp konuşma özetleri ve ekip içi notlar.
+              </span>
+            </div>
           </div>
 
-          {/* Yeni Not Ekleme Formu */}
-          <form onSubmit={handleAddNote} className="card" style={{ padding: '18px' }}>
-            <div className="form-group">
-              <label>Yeni Not Ekle</label>
+          {/* Yeni Görüşme / Not Ekleme Formu */}
+          <form onSubmit={handleAddNote} className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* İletişim / Not Türü Seçimi */}
+            <div>
+              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)', display: 'block', marginBottom: '8px' }}>
+                Kayıt Türü Seçiniz:
+              </label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'call', label: 'Telefon Görüşmesi', icon: Phone, color: '#0284c7', bg: '#e0f2fe' },
+                  { id: 'meeting', label: 'Toplantı Kaydı', icon: Users, color: '#7c3aed', bg: '#ede9fe' },
+                  { id: 'whatsapp', label: 'WhatsApp İletişimi', icon: MessageCircle, color: '#16a34a', bg: '#dcfce7' },
+                  { id: 'note', label: 'Genel Not', icon: FileText, color: '#d97706', bg: '#fef3c7' }
+                ].map((t) => {
+                  const Icon = t.icon;
+                  const isSelected = newNoteType === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setNewNoteType(t.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '0.8rem',
+                        fontWeight: isSelected ? 700 : 500,
+                        border: isSelected ? `2px solid ${t.color}` : '1px solid var(--border-color)',
+                        backgroundColor: isSelected ? t.bg : '#ffffff',
+                        color: isSelected ? t.color : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Icon size={14} />
+                      <span>{t.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
               <textarea
                 className="form-textarea"
                 rows={3}
-                placeholder="Örn: Müşteri tasarımda lacivert ve altın tonları tercih ediyor..."
+                placeholder={
+                  newNoteType === 'call' ? "Telefon görüşmesinde konuşulan maddeleri ve alınan kararları yazın..." :
+                  newNoteType === 'meeting' ? "Toplantı özeti, katılanlar ve mutabık kalınan konular..." :
+                  newNoteType === 'whatsapp' ? "WhatsApp üzerinden iletilen talep veya revizyon notları..." :
+                  "Müşteri hakkında ekip içi özel not..."
+                }
                 value={newNoteContent}
                 onChange={(e) => setNewNoteContent(e.target.value)}
                 required
@@ -1137,22 +1324,23 @@ export default function CustomerDetailView() {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Renk:</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Vurgu Rengi:</span>
                 {['blue', 'amber', 'emerald', 'rose', 'purple'].map(color => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setNewNoteColor(color)}
                     style={{
-                      width: '24px',
-                      height: '24px',
+                      width: '22px',
+                      height: '22px',
                       borderRadius: '50%',
                       backgroundColor:
                         color === 'blue' ? '#3b82f6' :
                         color === 'amber' ? '#f59e0b' :
                         color === 'emerald' ? '#10b981' :
                         color === 'rose' ? '#ef4444' : '#8b5cf6',
-                      border: newNoteColor === color ? '3px solid #0f172a' : 'none'
+                      border: newNoteColor === color ? '3px solid #0f172a' : 'none',
+                      cursor: 'pointer'
                     }}
                   />
                 ))}
@@ -1160,64 +1348,134 @@ export default function CustomerDetailView() {
 
               <button type="submit" className="btn btn-primary btn-sm">
                 <Plus size={16} />
-                <span>Notu Kaydet</span>
+                <span>Kaydı Sisteme Ekle</span>
               </button>
             </div>
           </form>
 
-          {/* Notlar Kartları */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
-            {customerNotes.length === 0 ? (
-              <div className="card" style={{ gridColumn: '1 / -1', padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                Henüz eklenmiş not yok.
-              </div>
-            ) : (
-              customerNotes.map((n) => (
-                <div
-                  key={n.id}
-                  className="card"
-                  style={{
-                    padding: '20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    borderLeft: `5px solid ${
-                      n.color === 'amber' ? '#f59e0b' :
-                      n.color === 'emerald' ? '#10b981' :
-                      n.color === 'rose' ? '#ef4444' :
-                      n.color === 'purple' ? '#8b5cf6' : '#3b82f6'
-                    }`
-                  }}
-                >
-                  <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                    "{n.content}"
-                  </p>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <img src={n.authorAvatar} alt={n.authorName} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
-                      <div>
-                        <strong style={{ fontSize: '0.78rem', color: 'var(--text-main)', display: 'block' }}>
-                          {n.authorName} ({n.authorRole})
-                        </strong>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          {new Date(n.createdAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => deleteNote(n.id)}
-                      style={{ color: 'var(--danger)', padding: '4px' }}
-                      title="Notu Sil"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
+          {/* Filtreleme Butonları */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Filtrele:</span>
+            {[
+              { id: 'all', label: 'Tümü', count: customerNotes.length },
+              { id: 'call', label: '📞 Telefon', count: customerNotes.filter(n => n.noteType === 'call').length },
+              { id: 'meeting', label: '🤝 Toplantı', count: customerNotes.filter(n => n.noteType === 'meeting').length },
+              { id: 'whatsapp', label: '💬 WhatsApp', count: customerNotes.filter(n => n.noteType === 'whatsapp').length },
+              { id: 'note', label: '📝 Notlar', count: customerNotes.filter(n => !n.noteType || n.noteType === 'note').length }
+            ].map(f => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setSelectedNoteFilter(f.id)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '16px',
+                  fontSize: '0.76rem',
+                  fontWeight: selectedNoteFilter === f.id ? 700 : 500,
+                  border: selectedNoteFilter === f.id ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                  backgroundColor: selectedNoteFilter === f.id ? 'var(--primary-light)' : '#ffffff',
+                  color: selectedNoteFilter === f.id ? 'var(--primary)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <span>{f.label}</span>
+                <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>({f.count})</span>
+              </button>
+            ))}
           </div>
+
+          {/* Görüşme Kayıtları & Notlar Kartları */}
+          {(() => {
+            const filteredNotes = customerNotes.filter(n => {
+              if (selectedNoteFilter === 'all') return true;
+              if (selectedNoteFilter === 'note') return !n.noteType || n.noteType === 'note';
+              return n.noteType === selectedNoteFilter;
+            });
+
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '16px' }}>
+                {filteredNotes.length === 0 ? (
+                  <div className="card" style={{ gridColumn: '1 / -1', padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Bu filtreye uygun görüşme kaydı veya not bulunmuyor.
+                  </div>
+                ) : (
+                  filteredNotes.map((n) => {
+                    const nType = n.noteType || 'note';
+                    return (
+                      <div
+                        key={n.id}
+                        className="card"
+                        style={{
+                          padding: '20px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          borderLeft: `5px solid ${
+                            n.color === 'amber' ? '#f59e0b' :
+                            n.color === 'emerald' ? '#10b981' :
+                            n.color === 'rose' ? '#ef4444' :
+                            n.color === 'purple' ? '#8b5cf6' : '#3b82f6'
+                          }`
+                        }}
+                      >
+                        <div>
+                          {/* Tür Rozeti */}
+                          <div style={{ marginBottom: '10px' }}>
+                            {nType === 'call' ? (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '3px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <Phone size={11} /> Telefon Görüşmesi
+                              </span>
+                            ) : nType === 'meeting' ? (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#7c3aed', backgroundColor: '#ede9fe', padding: '3px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <Users size={11} /> Toplantı Kaydı
+                              </span>
+                            ) : nType === 'whatsapp' ? (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#16a34a', backgroundColor: '#dcfce7', padding: '3px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <MessageCircle size={11} /> WhatsApp İletişimi
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#d97706', backgroundColor: '#fef3c7', padding: '3px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <FileText size={11} /> Ajans Notu
+                              </span>
+                            )}
+                          </div>
+
+                          <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>
+                            "{n.content}"
+                          </p>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <img src={n.authorAvatar} alt={n.authorName} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                            <div>
+                              <strong style={{ fontSize: '0.78rem', color: 'var(--text-main)', display: 'block' }}>
+                                {n.authorName} ({n.authorRole})
+                              </strong>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                {new Date(n.createdAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => deleteNote(n.id)}
+                            style={{ color: 'var(--danger)', padding: '4px' }}
+                            title="Notu Sil"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1459,6 +1717,43 @@ export default function CustomerDetailView() {
         </div>
       )}
 
+      {/* SEKME 8: İÇERİK TAKVİMİ & INSTAGRAM 3X3 */}
+      {activeTab === 'content-calendar' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                Sosyal Medya &amp; Instagram Izgara Yönetimi
+              </h3>
+              <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                {customer.companyName} için planlanan gönderiler ve canlı profil feed simülasyonu
+              </span>
+            </div>
+
+            {currentUser.role !== 'musteri' && (
+              <button
+                className="btn btn-primary"
+                onClick={() => setIsAddPostModalOpen(true)}
+                style={{
+                  background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                  borderColor: 'transparent',
+                  fontWeight: 700
+                }}
+              >
+                <Plus size={16} />
+                <span>Yeni Post Planla</span>
+              </button>
+            )}
+          </div>
+
+          <InstagramGridPreview
+            customer={customer}
+            posts={customerContentPosts}
+            onOpenAddModal={() => setIsAddPostModalOpen(true)}
+          />
+        </div>
+      )}
+
       {/* Modallar */}
       <AddCredentialModal
         isOpen={isCredModalOpen}
@@ -1480,6 +1775,12 @@ export default function CustomerDetailView() {
         isOpen={isOnboardingModalOpen}
         onClose={() => setIsOnboardingModalOpen(false)}
         customerId={customer.id}
+      />
+
+      <AddContentPostModal
+        isOpen={isAddPostModalOpen}
+        onClose={() => setIsAddPostModalOpen(false)}
+        initialCustomerId={customer.id}
       />
 
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   CopyCheck,
   Plus,
@@ -10,9 +10,13 @@ import {
   Edit2,
   Layers,
   ListOrdered,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileCheck,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { generateTemplateOnboarding } from '../../utils/onboardingHelper';
 import CreateTemplateModal from '../modals/CreateTemplateModal';
 import EditTemplateModal from '../modals/EditTemplateModal';
 import CategoryManagerModal from '../modals/CategoryManagerModal';
@@ -31,11 +35,23 @@ export default function TemplatesView() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [mouseDownOnOverlay, setMouseDownOnOverlay] = useState(false);
 
+  const [includeOnboarding, setIncludeOnboarding] = useState(true);
+  const [isOnboardingPreviewExpanded, setIsOnboardingPreviewExpanded] = useState(false);
+
+  const onboardingPreview = useMemo(() => {
+    if (!selectedTemplateForApply) return null;
+    return generateTemplateOnboarding(selectedTemplateForApply);
+  }, [selectedTemplateForApply]);
+
   const handleApply = (e) => {
     e.preventDefault();
     if (!selectedTemplateForApply || !targetCustomerId) return;
 
-    applyTemplateToCustomer(targetCustomerId, selectedTemplateForApply.id);
+    const autoOnboardingPayload = (includeOnboarding && onboardingPreview && onboardingPreview.items?.length > 0)
+      ? onboardingPreview
+      : null;
+
+    applyTemplateToCustomer(targetCustomerId, selectedTemplateForApply.id, autoOnboardingPayload);
 
     const customer = accessibleCustomers.find(c => c.id === targetCustomerId);
     setSuccessMessage(`"${selectedTemplateForApply.name}" şablonu ${customer?.companyName || 'Müşteri'} projesine başarıyla uygulandı!`);
@@ -289,6 +305,96 @@ export default function TemplatesView() {
                     ))}
                   </select>
                 </div>
+
+                {/* Onboarding Talep Onayı */}
+                {onboardingPreview && (
+                  <div
+                    style={{
+                      padding: '12px',
+                      background: includeOnboarding ? '#f0fdf4' : '#f8fafc',
+                      borderRadius: 'var(--radius-sm)',
+                      border: includeOnboarding ? '1px solid #86efac' : '1px dashed #cbd5e1',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={includeOnboarding}
+                        onChange={(e) => setIncludeOnboarding(e.target.checked)}
+                        style={{ width: 16, height: 16, accentColor: '#16a34a', cursor: 'pointer', marginTop: '2px' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: includeOnboarding ? '#166534' : 'var(--text-muted)' }}>
+                            Başlangıç Bilgi & Belge Taleplerini de İlet (Onboarding)
+                          </span>
+                          {includeOnboarding && (
+                            <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
+                              {onboardingPreview.items.length} Talep
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                          Müşteri portalında işe başlama bilgi ve evrak talepleri otomatik listelenir.
+                        </p>
+                      </div>
+                    </label>
+
+                    {includeOnboarding && (
+                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #bbf7d0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#166534' }}>
+                            Talep edilecek alanlar:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsOnboardingPreviewExpanded(!isOnboardingPreviewExpanded)}
+                            style={{
+                              fontSize: '0.7rem',
+                              color: '#166534',
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                              fontWeight: 600
+                            }}
+                          >
+                            <span>{isOnboardingPreviewExpanded ? 'Daralt' : 'İncele'}</span>
+                            {isOnboardingPreviewExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                          </button>
+                        </div>
+
+                        {isOnboardingPreviewExpanded && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '140px', overflowY: 'auto' }}>
+                            {onboardingPreview.items.map((item, i) => (
+                              <div
+                                key={i}
+                                style={{
+                                  fontSize: '0.75rem',
+                                  padding: '4px 8px',
+                                  background: '#ffffff',
+                                  borderRadius: '4px',
+                                  border: '1px solid #dcfce7',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between'
+                                }}
+                              >
+                                <span style={{ color: '#1f2937' }}>{item.label}</span>
+                                <span style={{ fontSize: '0.68rem', color: item.required ? 'var(--danger)' : 'var(--text-muted)', fontWeight: 600 }}>
+                                  {item.required ? 'Zorunlu' : 'İsteğe Bağlı'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer">

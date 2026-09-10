@@ -16,9 +16,11 @@ import {
   Eye,
   EyeOff,
   Key,
-  FileCheck
+  FileCheck,
+  Instagram
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import InstagramGridPreview from './InstagramGridPreview';
 
 export default function ClientPortalView() {
   const {
@@ -207,6 +209,79 @@ export default function ClientPortalView() {
             />
           </div>
         </div>
+
+        {/* Aşama Yol Haritası (Milestone Stepper) */}
+        {(() => {
+          const currentStageKey = customer.stage || (
+            pendingRequest ? 'onboarding' :
+            progress.percentage === 100 ? 'reporting' :
+            progress.percentage >= 40 ? 'active_ops' : 'setup'
+          );
+
+          const stages = [
+            { key: 'onboarding', number: 1, title: 'Başlangıç & Evrak', desc: 'Logo, şifre ve bilgi alımı' },
+            { key: 'setup', number: 2, title: 'Kurulum & Hazırlık', desc: 'Panel, şablon ve entegrasyon' },
+            { key: 'active_ops', number: 3, title: 'Aktif Operasyon', desc: 'Tasarım, içerik ve reklamlar' },
+            { key: 'reporting', number: 4, title: 'Raporlama & Büyüme', desc: 'Haftalık/aylık performans' }
+          ];
+
+          const stageOrder = ['onboarding', 'setup', 'active_ops', 'reporting'];
+          const currentStageIndex = stageOrder.indexOf(currentStageKey);
+
+          return (
+            <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+              <div style={{ fontSize: '0.78rem', color: '#93c5fd', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '12px' }}>
+                PROJE YOL HARİTASI & MEVCUT AŞAMA
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
+                {stages.map((st, idx) => {
+                  const isPast = idx < currentStageIndex;
+                  const isCurrent = idx === currentStageIndex;
+                  return (
+                    <div
+                      key={st.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '10px 12px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: isCurrent ? 'rgba(56, 189, 248, 0.18)' : isPast ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
+                        border: isCurrent ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)'
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          backgroundColor: isPast ? '#22c55e' : isCurrent ? '#38bdf8' : 'rgba(255,255,255,0.1)',
+                          color: isPast || isCurrent ? '#ffffff' : '#94a3b8',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: '0.8rem',
+                          flexShrink: 0
+                        }}
+                      >
+                        {isPast ? <Check size={16} strokeWidth={3} /> : st.number}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: isCurrent ? '#ffffff' : isPast ? '#e2e8f0' : '#94a3b8' }}>
+                          {st.title}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: isCurrent ? '#7dd3fc' : '#64748b' }}>
+                          {st.desc}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* MÜŞTERİDEN İSTENİLEN BİLGİLER FORMU (ONBOARDING) - İŞİ BAŞLATMAK İÇİN */}
@@ -365,7 +440,7 @@ export default function ClientPortalView() {
             {/* Gönder Butonu */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
               <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                🔒 Bilgileriniz güvenli şifreli kasaya kaydedilecek ve proje ekibimize otomatik iletilecektir.
+                🔒 Bilgileriniz güvenli sisteme kaydedilecek ve proje ekibimize otomatik iletilecektir.
               </span>
 
               <button
@@ -554,6 +629,80 @@ export default function ClientPortalView() {
           </div>
         </div>
       )}
+
+      {/* SOSYAL MEDYA İÇERİK TAKVİMİ & INSTAGRAM IZGARA ONÖNİZLEMESİ (Madde 2) */}
+      {(() => {
+        const customerPosts = (data.contentPosts || []).filter(p => p.customerId === customer.id);
+        const pendingPosts = customerPosts.filter(p => p.status === 'onay_bekliyor');
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Vurgu Banner'ı */}
+            <div
+              className="card"
+              style={{
+                padding: '20px 24px',
+                background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '14px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff'
+                  }}
+                >
+                  <Instagram size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>
+                    Sosyal Medya &amp; Instagram 3x3 Besleme Önizlemesi
+                  </h3>
+                  <span style={{ fontSize: '0.82rem', color: '#c4b5fd' }}>
+                    Ekibimizin sizin için hazırladığı gönderileri canlı profil düzeninde inceleyin ve onaylayın
+                  </span>
+                </div>
+              </div>
+
+              {pendingPosts.length > 0 && (
+                <div
+                  style={{
+                    backgroundColor: 'rgba(234, 88, 12, 0.25)',
+                    border: '1px solid #ea580c',
+                    color: '#fdba74',
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Clock size={15} />
+                  <span>{pendingPosts.length} Gönderi Onayınızı Bekliyor</span>
+                </div>
+              )}
+            </div>
+
+            {/* Instagram 3x3 Izgarası */}
+            <InstagramGridPreview customer={customer} posts={customerPosts} />
+          </div>
+        );
+      })()}
 
       {/* 3 KOLONLU İŞ DURUMU DÖKÜMÜ (Madde 19: Yapılan İşler, Devam Edenler, Bekleyenler) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>

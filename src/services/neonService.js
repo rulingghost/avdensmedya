@@ -91,4 +91,8 @@ export const neonUpdateUser = (id, updates) => mutate('updateUser', { id, update
 export const neonDeleteUser = (id) => mutate('deleteUser', { id });
 export const neonInsertOnboardingRequest = (request) => mutate('insertOnboardingRequest', request);
 export const neonUpdateOnboardingRequest = (id, updates) => mutate('updateOnboardingRequest', { id, updates });
+export const neonInsertContentPost = (post) => mutate('insertContentPost', post);
+export const neonUpdateContentPost = (id, updates) => mutate('updateContentPost', { id, updates });
+export const neonDeleteContentPost = (id) => mutate('deleteContentPost', { id });
 export const neonClearAllData = () => mutate('clearAllData', {});
+

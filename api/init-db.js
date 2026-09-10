@@ -194,6 +194,23 @@ export default async function handler(req, res) {
       );
     `;
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS content_posts (
+        id TEXT PRIMARY KEY,
+        "customerId" TEXT NOT NULL,
+        "customerName" TEXT,
+        title TEXT NOT NULL,
+        caption TEXT,
+        "mediaUrl" TEXT,
+        "mediaType" TEXT DEFAULT 'image',
+        platform TEXT DEFAULT 'instagram',
+        "scheduledDate" TIMESTAMPTZ,
+        status TEXT DEFAULT 'onay_bekliyor',
+        "clientFeedback" TEXT,
+        "createdAt" TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+
     // 2. Eğer özel veri gövdesi (body) gönderildiyse onu yükle, yoksa başlangıç demo verilerini yükle
     const customData = req.body && typeof req.body === 'object' && req.body.customers ? req.body : null;
 
