@@ -106,9 +106,19 @@ export default function AddTaskModal({ isOpen, onClose, defaultCustomerId = null
                   type="text"
                   className="form-input"
                   placeholder="Serdar, Mücahit, Tasarımcı vb."
+                  list="team-members-list"
                   value={formData.assignedTo}
                   onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
                 />
+                <datalist id="team-members-list">
+                  {data.users.map(u => (
+                    <option key={u.id} value={u.name}>
+                      {u.name} ({u.role === 'admin' ? 'Yönetici' : u.role === 'araci' ? 'İş Ortağı' : 'Müşteri'})
+                    </option>
+                  ))}
+                  <option value="Tasarım Ekibi" />
+                  <option value="Yazılım Ekibi" />
+                </datalist>
               </div>
             </div>
 

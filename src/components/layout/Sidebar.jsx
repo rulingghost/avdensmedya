@@ -11,7 +11,8 @@ import {
   MessageSquareText,
   X,
   UserCog,
-  LogOut
+  LogOut,
+  UserCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -108,13 +109,24 @@ export default function Sidebar({ isOpen, onClose, onOpenEditProfile }) {
             </button>
 
             {currentUser.role === 'admin' && (
-              <button
-                className={`nav-item ${activePage === 'templates' ? 'active' : ''}`}
-                onClick={() => setActivePage('templates')}
-              >
-                <CopyCheck size={18} />
-                <span>Görev Şablonları</span>
-              </button>
+              <>
+                <button
+                  className={`nav-item ${activePage === 'templates' ? 'active' : ''}`}
+                  onClick={() => handleNavClick('templates')}
+                >
+                  <CopyCheck size={18} />
+                  <span>Görev Şablonları</span>
+                </button>
+
+                <button
+                  className={`nav-item ${activePage === 'users' ? 'active' : ''}`}
+                  onClick={() => handleNavClick('users')}
+                >
+                  <UserCheck size={18} />
+                  <span>Ekip &amp; Yetkililer</span>
+                  <span className="nav-badge" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }}>{data.users.length}</span>
+                </button>
+              </>
             )}
 
             <button

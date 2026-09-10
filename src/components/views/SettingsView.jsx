@@ -8,7 +8,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  UserCheck,
+  ArrowRight
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -20,7 +22,8 @@ export default function SettingsView() {
     exportDataAsJSON,
     importDataFromJSON,
     currentUser,
-    isSyncing
+    isSyncing,
+    setActivePage
   } = useApp();
 
   const fileInputRef = useRef(null);
@@ -115,7 +118,7 @@ export default function SettingsView() {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
           <div style={{ padding: '12px', background: 'var(--bg-app)', borderRadius: 'var(--radius-sm)' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Müşteriler</span>
             <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{data.customers.length} Adet</div>
@@ -123,6 +126,10 @@ export default function SettingsView() {
           <div style={{ padding: '12px', background: 'var(--bg-app)', borderRadius: 'var(--radius-sm)' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Görevler</span>
             <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{data.tasks.length} Adet</div>
+          </div>
+          <div style={{ padding: '12px', background: 'var(--bg-app)', borderRadius: 'var(--radius-sm)' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ekip &amp; Yetkililer</span>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)' }}>{data.users.length} Kişi</div>
           </div>
           <div style={{ padding: '12px', background: 'var(--bg-app)', borderRadius: 'var(--radius-sm)' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Şablonlar</span>
@@ -136,6 +143,24 @@ export default function SettingsView() {
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Hesap &amp; Dosya</span>
             <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{data.credentials.length + data.files.length} Adet</div>
           </div>
+        </div>
+
+        {/* Ekip Yönetimine Hızlı Geçiş */}
+        <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <UserCheck size={16} color="var(--primary)" />
+            <span style={{ fontSize: '0.84rem', color: 'var(--text-main)', fontWeight: 600 }}>
+              Yöneticileri ve Aracıları (İş Ortaklarını) ekleyin, düzenleyin veya yetkilendirin.
+            </span>
+          </div>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setActivePage('users')}
+            style={{ fontWeight: 600 }}
+          >
+            <span>Ekip ve Yetkilileri Yönet</span>
+            <ArrowRight size={14} />
+          </button>
         </div>
       </div>
 

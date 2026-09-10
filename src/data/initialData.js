@@ -674,20 +674,20 @@ export const INITIAL_TEMPLATES = [
     name: 'Sosyal Medya ve Meta Yönetimi (Standart Paket)',
     description: 'Yeni müşteriler için tek tıkla 14 adımlı standart sosyal medya ve reklam kurulumu.',
     taskItems: [
-      { title: 'Instagram Analizi ve Profil Taraması', category: 'cat-organik', priority: 'normal' },
-      { title: 'Meta Business Kurulumu ve Doğrulama', category: 'cat-meta', priority: 'yuksek' },
-      { title: 'Facebook Sayfası ve Instagram Bağlantısı', category: 'cat-meta', priority: 'yuksek' },
-      { title: 'Reklam Hesabı ve Ödeme Kurulumu', category: 'cat-meta', priority: 'yuksek' },
-      { title: 'Profil Optimizasyonu ve Biyo Linki', category: 'cat-meta', priority: 'normal' },
-      { title: 'İçerik Konsepti ve Renk Paleti', category: 'cat-icerik', priority: 'yuksek' },
-      { title: 'Gönderi Tasarımları (Haftalık Şablonlar)', category: 'cat-icerik', priority: 'normal' },
-      { title: 'Reels Video Planlaması', category: 'cat-icerik', priority: 'yuksek' },
-      { title: 'Story Takvimi ve Etkileşim Planı', category: 'cat-icerik', priority: 'normal' },
-      { title: 'İlk Reklam Kampanyası Kurulumu', category: 'cat-reklam', priority: 'acil' },
-      { title: 'WhatsApp Mesaj Reklamı Kurulumu', category: 'cat-reklam', priority: 'acil' },
-      { title: 'Remarketing (Yeniden Pazarlama) Kurulumu', category: 'cat-reklam', priority: 'yuksek' },
-      { title: 'Organik Büyüme ve Rakip Etkileşimi', category: 'cat-organik', priority: 'normal' },
-      { title: 'Aylık Yönetici Performans Raporu', category: 'cat-rapor', priority: 'normal' }
+      { title: 'Instagram Analizi ve Profil Taraması', category: 'cat-organik', priority: 'normal', description: 'Mevcut profilin biyo, görsel düzeni, öne çıkanlar ve etkileşim oranlarının detaylı incelenmesi.' },
+      { title: 'Meta Business Kurulumu ve Doğrulama', category: 'cat-meta', priority: 'yuksek', description: 'Meta Business Suite hesabı açılışı, iki adımlı güvenlik doğrulaması ve resmi alan adı doğrulaması.' },
+      { title: 'Facebook Sayfası ve Instagram Bağlantısı', category: 'cat-meta', priority: 'yuksek', description: 'Facebook işletme sayfası ile Instagram profesyonel hesabının birbirine bağlanması ve yetki atanması.' },
+      { title: 'Reklam Hesabı ve Ödeme Kurulumu', category: 'cat-meta', priority: 'yuksek', description: 'Reklam hesabı oluşturulması, şirket fatura bilgilerinin girilmesi ve kredi kartı tanımlaması.' },
+      { title: 'Profil Optimizasyonu ve Biyo Linki', category: 'cat-meta', priority: 'normal', description: 'Hedef kitleye hitap eden biyo metni, WhatsApp hızlı iletişim butonu ve link yönlendirmesi.' },
+      { title: 'İçerik Konsepti ve Renk Paleti', category: 'cat-icerik', priority: 'yuksek', description: 'Marka kurumsal kimliğine uygun renk paleti, tipografi ve Canva/Photoshop şablon tasarımı.' },
+      { title: 'Gönderi Tasarımları (Haftalık Şablonlar)', category: 'cat-icerik', priority: 'normal', description: 'Haftalık olarak paylaşılacak carousel ve tekli post tasarımlarının hazırlanıp onaya sunulması.' },
+      { title: 'Reels Video Planlaması', category: 'cat-icerik', priority: 'yuksek', description: 'Trend sesler, dinamik kesimler ve dikkat çekici kapak görselleriyle haftalık Reels planı.' },
+      { title: 'Story Takvimi ve Etkileşim Planı', category: 'cat-icerik', priority: 'normal', description: 'Anket, soru-cevap ve günlük etkileşim artırıcı hikaye şablonlarının planlanması.' },
+      { title: 'İlk Reklam Kampanyası Kurulumu', category: 'cat-reklam', priority: 'acil', description: 'A/B testli ilk potansiyel müşteri veya mesaj kampanyasının reklam paneli üzerinden açılması.' },
+      { title: 'WhatsApp Mesaj Reklamı Kurulumu', category: 'cat-reklam', priority: 'acil', description: 'Doğrudan WhatsApp hattına yönlendiren reklam kurgusu ve otomatik karşılama mesajı.' },
+      { title: 'Remarketing (Yeniden Pazarlama) Kurulumu', category: 'cat-reklam', priority: 'yuksek', description: 'Sayfa ziyaretçileri ve etkileşim kuran kişilerden özel hedef kitle (Custom Audience) oluşturulması.' },
+      { title: 'Organik Büyüme ve Rakip Etkileşimi', category: 'cat-organik', priority: 'normal', description: 'Sektörel hedef kitle hesaplarıyla günlük etkileşim ve doğru hashtag kullanımı stratejisi.' },
+      { title: 'Aylık Yönetici Performans Raporu', category: 'cat-rapor', priority: 'normal', description: 'Erişim, harcanan bütçe, tıklama başı maliyet ve gelen mesaj sayılarını içeren aylık sunum.' }
     ]
   },
   {
@@ -695,11 +695,11 @@ export const INITIAL_TEMPLATES = [
     name: 'Web Sitesi Kurulum & SEO Başlangıç Paketi',
     description: 'Kurumsal web sitesi ve arama motoru optimizasyonu görev dizisi.',
     taskItems: [
-      { title: 'Domain ve Hosting Kurulumu', category: 'cat-teknik', priority: 'acil' },
-      { title: 'WordPress ve Güvenlik Eklentileri Kurulumu', category: 'cat-teknik', priority: 'yuksek' },
-      { title: 'Google Analytics 4 & Search Console Bağlantısı', category: 'cat-teknik', priority: 'yuksek' },
-      { title: 'Sayfa İçi SEO ve Meta Açıklamaları', category: 'cat-organik', priority: 'normal' },
-      { title: 'İletişim Formları ve WhatsApp Butonu Entegrasyonu', category: 'cat-teknik', priority: 'yuksek' }
+      { title: 'Domain ve Hosting Kurulumu', category: 'cat-teknik', priority: 'acil', description: 'Alan adı DNS yönlendirmeleri, SSL sertifikası ve hosting yapılandırmasının yapılması.' },
+      { title: 'WordPress ve Güvenlik Eklentileri Kurulumu', category: 'cat-teknik', priority: 'yuksek', description: 'WordPress çekirdek kurulumu, tema entegrasyonu ve güvenlik eklentisi ayarları.' },
+      { title: 'Google Analytics 4 & Search Console Bağlantısı', category: 'cat-teknik', priority: 'yuksek', description: 'GA4 ölçüm kimliği ve Google Search Console sitemap doğrulamalarının tamamlanması.' },
+      { title: 'Sayfa İçi SEO ve Meta Açıklamaları', category: 'cat-organik', priority: 'normal', description: 'H1-H3 başlık hiyerarşisi, anahtar kelime optimizasyonu ve görsel alt etiketlerinin düzenlenmesi.' },
+      { title: 'İletişim Formları ve WhatsApp Butonu Entegrasyonu', category: 'cat-teknik', priority: 'yuksek', description: 'Çalışan iletişim formu, SMTP mail ayarı ve web sitesi köşesine yüzen WhatsApp butonu.' }
     ]
   }
 ];

@@ -40,7 +40,9 @@ import {
   neonInsertTemplate,
   neonUpdateTemplate,
   neonDeleteTemplate,
+  neonInsertUser,
   neonUpdateUser,
+  neonDeleteUser,
   neonUpdateOnboardingRequest,
   neonClearAllData
 } from '../services/neonService';
@@ -312,6 +314,164 @@ export function AppProvider({ children }) {
   };
 
   // -------------------------------------------------------------
+  // KULLANICI / YETKİLİ YÖNETİMİ (YÖNETİCİ & ARACI CRUD)
+  // -------------------------------------------------------------
+  const addUser = async (userData) => {
+    if (currentUser.role !== 'admin') {
+      return { success: false, message: 'Bu işlem için yönetici yetkisi gereklidir.' };
+    }
+
+    const name = String(userData.name || '').trim();
+    const email = String(userData.email || '').toLowerCase().trim();
+    const password = String(userData.password || '').trim();
+    const role = userData.role === 'admin' ? 'admin' : 'araci';
+
+    if (!name) {
+      return { success: false, message: 'Ad Soyad alanı zorunludur.' };
+    }
+    if (!email) {
+      return { success: false, message: 'E-posta adresi zorunludur.' };
+    }
+    if (!password) {
+      return { success: false, message: 'Şifre alanı zorunludur.' };
+    }
+
+    const emailExists = data.users.some(u => u.email.toLowerCase().trim() === email);
+    if (emailExists) {
+      return { success: false, message: 'Bu e-posta adresi ile kayıtlı başka bir yetkili bulunmaktadır.' };
+    }
+
+    const defaultAvatar = role === 'admin'
+      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+      : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+
+    const newUser = {
+      id: 'user-' + Date.now(),
+      name,
+      email,
+      password,
+      role,
+      title: userData.title || (role === 'admin' ? 'Ajans Yöneticisi' : 'İş Ortağı / Aracı'),
+      phone: userData.phone || '',
+      avatar: userData.avatar || defaultAvatar,
+      company: role === 'musteri' ? userData.company : null,
+      customerId: role === 'musteri' ? userData.customerId : null,
+      createdAt: new Date().toISOString()
+    };
+
+    setData(prev => ({
+      ...prev,
+      users: [...prev.users, newUser]
+    }));
+
+    // Neon veritabanına kaydet
+    neonInsertUser(newUser).catch(console.error);
+
+    const roleLabel = role === 'admin' ? 'Yönetici' : 'İş Ortağı / Aracı';
+    logActivity('global', `${currentUser.name} sisteme yeni bir ${roleLabel} ekledi: "${newUser.name}" (${newUser.email})`);
+    addNotification('Yeni Yetkili Eklendi', `${newUser.name} (${roleLabel}) sisteme dahil edildi.`);
+
+    return { success: true, user: newUser };
+  };
+
+  const updateUser = async (userId, updates) => {
+    if (currentUser.role !== 'admin') {
+      return { success: false, message: 'Bu işlem için yönetici yetkisi gereklidir.' };
+    }
+
+    const targetUser = data.users.find(u => u.id === userId);
+    if (!targetUser) {
+      return { success: false, message: 'Kullanıcı bulunamadı.' };
+    }
+
+    // E-posta değiştiyse benzersizlik kontrolü
+    if (updates.email) {
+      const email = String(updates.email).toLowerCase().trim();
+      const duplicate = data.users.some(u => u.id !== userId && u.email.toLowerCase().trim() === email);
+      if (duplicate) {
+        return { success: false, message: 'Bu e-posta adresi başka bir yetkili tarafından kullanılmaktadır.' };
+      }
+    }
+
+    // Son yönetici rolünü aracıya düşüremez
+    if (targetUser.role === 'admin' && updates.role && updates.role !== 'admin') {
+      const adminCount = data.users.filter(u => u.role === 'admin').length;
+      if (adminCount <= 1) {
+        return { success: false, message: 'Sistemde en az 1 yönetici kalmalıdır. Rol düşürülemez.' };
+      }
+    }
+
+    const updatedUser = {
+      ...targetUser,
+      ...updates,
+      email: updates.email ? String(updates.email).toLowerCase().trim() : targetUser.email,
+      name: updates.name ? String(updates.name).trim() : targetUser.name
+    };
+
+    // Eğer o an oturum açmış kullanıcı güncelleniyorsa currentUser'ı da güncelle
+    if (currentUser.id === userId) {
+      setCurrentUser(updatedUser);
+      try {
+        localStorage.setItem('AVDENS_WORK_CURRENT_USER_ID', updatedUser.id);
+      } catch (e) {}
+    }
+
+    setData(prev => ({
+      ...prev,
+      users: prev.users.map(u => u.id === userId ? updatedUser : u),
+      // Eğer aracının adı değiştiyse, ona bağlı müşterilerin partnerName alanını güncelle
+      customers: updatedUser.role === 'araci'
+        ? prev.customers.map(c => c.partnerId === userId ? { ...c, partnerName: updatedUser.name } : c)
+        : prev.customers
+    }));
+
+    // Neon veritabanına yaz
+    neonUpdateUser(userId, updates).catch(console.error);
+
+    logActivity('global', `${currentUser.name}, yetkili "${updatedUser.name}" bilgilerini güncelledi.`);
+    return { success: true, user: updatedUser };
+  };
+
+  const deleteUser = async (userId) => {
+    if (currentUser.role !== 'admin') {
+      return { success: false, message: 'Bu işlem için yönetici yetkisi gereklidir.' };
+    }
+
+    // Kendi hesabını silemez
+    if (currentUser.id === userId) {
+      return { success: false, message: 'Kendi aktif oturumunuzu silemezsiniz.' };
+    }
+
+    const targetUser = data.users.find(u => u.id === userId);
+    if (!targetUser) {
+      return { success: false, message: 'Silinecek yetkili bulunamadı.' };
+    }
+
+    // Son yöneticiyi silemez
+    if (targetUser.role === 'admin') {
+      const adminCount = data.users.filter(u => u.role === 'admin').length;
+      if (adminCount <= 1) {
+        return { success: false, message: 'Sistemde en az 1 yönetici kalmalıdır.' };
+      }
+    }
+
+    // Kullanıcıyı sil ve eğer aracı ise müşterilerini boşa çıkar
+    setData(prev => ({
+      ...prev,
+      users: prev.users.filter(u => u.id !== userId),
+      customers: prev.customers.map(c => c.partnerId === userId ? { ...c, partnerId: null, partnerName: 'Atanmamış' } : c)
+    }));
+
+    // Neon veritabanına yaz
+    neonDeleteUser(userId).catch(console.error);
+
+    logActivity('global', `${currentUser.name}, "${targetUser.name}" (${targetUser.role === 'admin' ? 'Yönetici' : 'İş Ortağı'}) yetkilisini sildi.`);
+    addNotification('Yetkili Silindi', `"${targetUser.name}" sistemden kaldırıldı.`);
+
+    return { success: true };
+  };
+
+  // -------------------------------------------------------------
   // GÖREV İŞLEMLERİ
   // -------------------------------------------------------------
   const toggleTask = (taskId) => {
@@ -502,7 +662,7 @@ export function AppProvider({ children }) {
           customerId: newId,
           categoryId: item.category,
           title: item.title,
-          description: `Şablondan otomatik oluşturuldu: ${template.name}`,
+          description: item.description || `Şablondan otomatik oluşturuldu: ${template.name}`,
           assignedTo: currentUser.name,
           assignedRole: currentUser.role,
           startDate: newCustomer.startDate,
@@ -801,7 +961,7 @@ export function AppProvider({ children }) {
       customerId,
       categoryId: item.category,
       title: item.title,
-      description: `Şablondan oluşturuldu: ${template.name}`,
+      description: item.description || `Şablondan oluşturuldu: ${template.name}`,
       assignedTo: currentUser.name,
       assignedRole: currentUser.role,
       startDate: new Date().toISOString().split('T')[0],
@@ -1323,6 +1483,10 @@ export function AppProvider({ children }) {
         importDataFromJSON,
         resetToDefaultData,
         clearAllData,
+        // Kullanıcı & Yetkili Yönetimi
+        addUser,
+        updateUser,
+        deleteUser,
         getCustomerProgress,
         getAccessibleCustomers
       }}

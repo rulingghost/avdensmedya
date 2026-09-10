@@ -337,13 +337,41 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true });
         }
 
+        case 'insertUser': {
+          const u = payload;
+          await sql`
+            INSERT INTO users (id, name, email, password, role, avatar, title, phone, company, "customerId")
+            VALUES (${u.id}, ${u.name}, ${u.email}, ${u.password}, ${u.role || 'araci'}, ${u.avatar || null}, ${u.title || null}, ${u.phone || null}, ${u.company || null}, ${u.customerId || null})
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              email = EXCLUDED.email,
+              password = EXCLUDED.password,
+              role = EXCLUDED.role,
+              avatar = EXCLUDED.avatar,
+              title = EXCLUDED.title,
+              phone = EXCLUDED.phone;
+          `;
+          return res.status(200).json({ success: true });
+        }
+
         case 'updateUser': {
           const { id, updates } = payload;
           if (updates.name) await sql`UPDATE users SET name = ${updates.name} WHERE id = ${id};`;
           if (updates.email) await sql`UPDATE users SET email = ${updates.email} WHERE id = ${id};`;
-          if (updates.phone) await sql`UPDATE users SET phone = ${updates.phone} WHERE id = ${id};`;
-          if (updates.avatar) await sql`UPDATE users SET avatar = ${updates.avatar} WHERE id = ${id};`;
-          if (updates.title) await sql`UPDATE users SET title = ${updates.title} WHERE id = ${id};`;
+          if (updates.password) await sql`UPDATE users SET password = ${updates.password} WHERE id = ${id};`;
+          if (updates.role) await sql`UPDATE users SET role = ${updates.role} WHERE id = ${id};`;
+          if (updates.phone !== undefined) await sql`UPDATE users SET phone = ${updates.phone} WHERE id = ${id};`;
+          if (updates.avatar !== undefined) await sql`UPDATE users SET avatar = ${updates.avatar} WHERE id = ${id};`;
+          if (updates.title !== undefined) await sql`UPDATE users SET title = ${updates.title} WHERE id = ${id};`;
+          if (updates.company !== undefined) await sql`UPDATE users SET company = ${updates.company} WHERE id = ${id};`;
+          if (updates.customerId !== undefined) await sql`UPDATE users SET "customerId" = ${updates.customerId} WHERE id = ${id};`;
+          return res.status(200).json({ success: true });
+        }
+
+        case 'deleteUser': {
+          const userId = payload.id;
+          await sql`UPDATE customers SET "partnerId" = NULL, "partnerName" = 'Atanmamış' WHERE "partnerId" = ${userId};`;
+          await sql`DELETE FROM users WHERE id = ${userId};`;
           return res.status(200).json({ success: true });
         }
 

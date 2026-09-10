@@ -9,12 +9,14 @@ import {
   Trash2,
   Edit2,
   Layers,
-  ListOrdered
+  ListOrdered,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import CreateTemplateModal from '../modals/CreateTemplateModal';
 import EditTemplateModal from '../modals/EditTemplateModal';
 import CategoryManagerModal from '../modals/CategoryManagerModal';
+import ImportTemplateModal from '../modals/ImportTemplateModal';
 
 export default function TemplatesView() {
   const { data, applyTemplateToCustomer, deleteTemplate, currentUser } = useApp();
@@ -22,6 +24,7 @@ export default function TemplatesView() {
   const [selectedTemplateForApply, setSelectedTemplateForApply] = useState(null);
   const [templateToEdit, setTemplateToEdit] = useState(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [targetCustomerId, setTargetCustomerId] = useState(data.customers[0]?.id || '');
   const [successMessage, setSuccessMessage] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -67,7 +70,25 @@ export default function TemplatesView() {
         </div>
 
         {currentUser.role === 'admin' && (
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setIsImportModalOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                borderColor: '#10b981',
+                color: '#059669',
+                backgroundColor: '#ecfdf5',
+                fontWeight: 700
+              }}
+              title="Excel (.xlsx, .xls) veya CSV dosyasından tek tıkla şablon aktarın"
+            >
+              <FileSpreadsheet size={18} color="#059669" />
+              <span>Excel'den Şablon Aktar</span>
+            </button>
+
             <button
               className="btn btn-secondary"
               onClick={() => setIsCategoryModalOpen(true)}
@@ -159,35 +180,44 @@ export default function TemplatesView() {
                   Paket İçeriğindeki Standart Adımlar:
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }}>
-                  {tmpl.taskItems.map((item, idx) => {
-                    const cat = data.categories.find(c => c.id === item.category);
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '6px 10px',
-                          background: '#ffffff',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.82rem',
-                          border: '1px solid var(--border-subtle)'
-                        }}
-                      >
-                        <span style={{ fontWeight: 500 }}>
-                          {idx + 1}. {item.title}
-                        </span>
-                        {cat && (
-                          <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', background: `${cat.color}15`, color: cat.color, fontWeight: 600 }}>
-                            {cat.name}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '260px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {tmpl.taskItems.map((item, idx) => {
+                        const cat = data.categories.find(c => c.id === item.category);
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '4px',
+                              padding: '8px 12px',
+                              background: '#ffffff',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: '0.82rem',
+                              border: '1px solid var(--border-subtle)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                                {idx + 1}. {item.title}
+                              </span>
+                              {cat && (
+                                <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', background: `${cat.color}15`, color: cat.color, fontWeight: 600, flexShrink: 0 }}>
+                                  {cat.name}
+                                </span>
+                              )}
+                            </div>
+
+                            {item.description && (
+                              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', borderLeft: '2px solid var(--primary)', paddingLeft: '8px', marginTop: '2px', lineHeight: 1.4 }}>
+                                <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.72rem' }}>Yapılacak İş: </span>
+                                {item.description}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
               </div>
             </div>
 
@@ -261,6 +291,10 @@ export default function TemplatesView() {
       <CreateTemplateModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        onOpenImport={() => {
+          setIsCreateModalOpen(false);
+          setIsImportModalOpen(true);
+        }}
       />
 
       {/* Şablon Düzenleme Modalı */}
@@ -274,6 +308,12 @@ export default function TemplatesView() {
       <CategoryManagerModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
+      />
+
+      {/* Excel'den Şablon Aktarma Modalı */}
+      <ImportTemplateModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
       />
 
     </div>

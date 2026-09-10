@@ -83,6 +83,8 @@ export const neonMarkAllNotificationsRead = () => mutate('markAllNotificationsRe
 export const neonInsertTemplate = (template) => mutate('insertTemplate', template);
 export const neonUpdateTemplate = (id, updates) => mutate('updateTemplate', { id, updates });
 export const neonDeleteTemplate = (id) => mutate('deleteTemplate', { id });
+export const neonInsertUser = (user) => mutate('insertUser', user);
 export const neonUpdateUser = (id, updates) => mutate('updateUser', { id, updates });
+export const neonDeleteUser = (id) => mutate('deleteUser', { id });
 export const neonUpdateOnboardingRequest = (id, updates) => mutate('updateOnboardingRequest', { id, updates });
 export const neonClearAllData = () => mutate('clearAllData', {});

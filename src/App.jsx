@@ -15,6 +15,7 @@ import ClientPortalView from './components/views/ClientPortalView';
 import CommentsView from './components/views/CommentsView';
 import FilesView from './components/views/FilesView';
 import SettingsView from './components/views/SettingsView';
+import UsersView from './components/views/UsersView';
 
 export default function App() {
   const {
@@ -58,7 +59,7 @@ export default function App() {
           {/* 1. Müşteri Rolü: Yalnızca kendine özel portala, dosyalara, yorumlara ve görevlere erişebilir */}
           {isCustomer ? (
             <>
-              {(activePage === 'dashboard' || activePage === 'customers' || activePage === 'customer-detail' || activePage === 'templates' || activePage === 'activities' || activePage === 'settings') && (
+              {(activePage === 'dashboard' || activePage === 'customers' || activePage === 'customer-detail' || activePage === 'templates' || activePage === 'activities' || activePage === 'settings' || activePage === 'users') && (
                 <ClientPortalView />
               )}
               {activePage === 'tasks' && <TasksView />}
@@ -88,6 +89,15 @@ export default function App() {
               {activePage === 'templates' && (
                 currentUser.role === 'admin' ? (
                   <TemplatesView />
+                ) : (
+                  <DashboardView onOpenQuickAction={() => setIsQuickActionOpen(true)} />
+                )
+              )}
+
+              {/* Ekip & Yetkili Yönetimi: SADECE Admin erişebilir */}
+              {activePage === 'users' && (
+                currentUser.role === 'admin' ? (
+                  <UsersView />
                 ) : (
                   <DashboardView onOpenQuickAction={() => setIsQuickActionOpen(true)} />
                 )

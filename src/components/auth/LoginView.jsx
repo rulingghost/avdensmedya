@@ -208,49 +208,52 @@ export default function LoginView() {
           {showAccountHelper && (
             <div style={{
               marginTop: '10px',
-              padding: '12px',
+              padding: '10px',
               borderRadius: 'var(--radius-md)',
               background: 'var(--bg-app)',
               border: '1px solid var(--border-color)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '8px'
+              gap: '8px',
+              maxHeight: '260px',
+              overflowY: 'auto'
             }}>
-              <div
-                onClick={() => fillCredentials('serdar@avdens.work', '123')}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', background: '#ffffff', border: '1px solid var(--border-subtle)', fontSize: '0.78rem' }}
-                title="Formu Doldur"
-              >
-                <div>
-                  <strong style={{ color: 'var(--primary)' }}>👑 Yönetici (Admin):</strong>
-                  <div style={{ color: 'var(--text-muted)' }}>serdar@avdens.work / 123</div>
-                </div>
-                <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 600 }}>Doldur ✎</span>
-              </div>
+              {data.users.map((u) => {
+                const isAdm = u.role === 'admin';
+                const isAraci = u.role === 'araci';
+                const roleColor = isAdm ? 'var(--primary)' : isAraci ? '#16a34a' : '#ea580c';
+                const roleIcon = isAdm ? '👑' : isAraci ? '🤝' : '🏢';
+                const roleTitle = isAdm ? 'Yönetici' : isAraci ? 'İş Ortağı' : 'Müşteri';
 
-              <div
-                onClick={() => fillCredentials('mucahit@avdens.work', '123')}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', background: '#ffffff', border: '1px solid var(--border-subtle)', fontSize: '0.78rem' }}
-                title="Formu Doldur"
-              >
-                <div>
-                  <strong style={{ color: '#16a34a' }}>🤝 İş Ortağı (Aracı):</strong>
-                  <div style={{ color: 'var(--text-muted)' }}>mucahit@avdens.work / 123</div>
-                </div>
-                <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>Doldur ✎</span>
-              </div>
-
-              <div
-                onClick={() => fillCredentials('ozlem@omteklazer.com', '123')}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', background: '#ffffff', border: '1px solid var(--border-subtle)', fontSize: '0.78rem' }}
-                title="Formu Doldur"
-              >
-                <div>
-                  <strong style={{ color: '#ea580c' }}>🏢 Müşteri (OMTEK Lazer):</strong>
-                  <div style={{ color: 'var(--text-muted)' }}>ozlem@omteklazer.com / 123</div>
-                </div>
-                <span style={{ fontSize: '0.72rem', color: '#ea580c', fontWeight: 600 }}>Doldur ✎</span>
-              </div>
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => fillCredentials(u.email, u.password || '123')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      background: '#ffffff',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.78rem'
+                    }}
+                    title="Formu Doldur"
+                  >
+                    <div style={{ overflow: 'hidden' }}>
+                      <strong style={{ color: roleColor }}>{roleIcon} {roleTitle}: {u.name}</strong>
+                      <div style={{ color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {u.email} / {u.password || '123'}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: roleColor, fontWeight: 700, flexShrink: 0, marginLeft: '8px' }}>
+                      Doldur ✎
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

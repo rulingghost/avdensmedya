@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { X, UserPlus, CheckSquare, FileText, Sparkles } from 'lucide-react';
+import { X, UserPlus, CheckSquare, FileText, Sparkles, UserCheck, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export default function QuickActionModal({ isOpen, onClose }) {
-  const { data, addTask, addCustomer, addNote, currentUser, selectedCustomerId, getAccessibleCustomers } = useApp();
+  const { data, addTask, addCustomer, addNote, addUser, currentUser, selectedCustomerId, getAccessibleCustomers } = useApp();
 
   const accessibleCustomers = getAccessibleCustomers();
   const defaultCustId = selectedCustomerId && accessibleCustomers.some(c => c.id === selectedCustomerId)
     ? selectedCustomerId
     : (accessibleCustomers[0]?.id || '');
 
-  const [activeTab, setActiveTab] = useState('task'); // 'task' | 'customer' | 'note'
+  const [activeTab, setActiveTab] = useState('task'); // 'task' | 'customer' | 'note' | 'user'
 
   // Görev formu
   const [taskForm, setTaskForm] = useState({
@@ -41,6 +41,17 @@ export default function QuickActionModal({ isOpen, onClose }) {
     color: 'blue'
   });
 
+  // Ekip / Yetkili formu (Sadece Admin)
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '123',
+    role: 'araci',
+    title: 'İş Ortağı / Aracı',
+    phone: ''
+  });
+  const [userError, setUserError] = useState('');
+
   if (!isOpen) return null;
 
   const handleTaskSubmit = (e) => {
@@ -64,6 +75,17 @@ export default function QuickActionModal({ isOpen, onClose }) {
     onClose();
   };
 
+  const handleUserSubmit = async (e) => {
+    e.preventDefault();
+    setUserError('');
+    const res = await addUser(userForm);
+    if (res.success) {
+      onClose();
+    } else {
+      setUserError(res.message);
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -78,7 +100,7 @@ export default function QuickActionModal({ isOpen, onClose }) {
         </div>
 
         {/* Sekmeler */}
-        <div style={{ display: 'flex', padding: '12px 24px 0 24px', gap: '8px', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', padding: '12px 24px 0 24px', gap: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
           <button
             className={`btn btn-sm ${activeTab === 'task' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('task')}
@@ -102,6 +124,16 @@ export default function QuickActionModal({ isOpen, onClose }) {
             <FileText size={14} />
             <span>Yeni Not</span>
           </button>
+          {currentUser.role === 'admin' && (
+            <button
+              className={`btn btn-sm ${activeTab === 'user' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('user')}
+              style={activeTab === 'user' ? { background: '#8b5cf6', borderColor: '#8b5cf6' } : {}}
+            >
+              <UserCheck size={14} />
+              <span>Yeni Ekip / Aracı</span>
+            </button>
+          )}
         </div>
 
         <div className="modal-body">
@@ -327,6 +359,122 @@ export default function QuickActionModal({ isOpen, onClose }) {
               <div className="modal-footer" style={{ margin: '0 -24px -24px -24px' }}>
                 <button type="button" className="btn btn-secondary" onClick={onClose}>İptal</button>
                 <button type="submit" className="btn btn-primary">Notu Ekle</button>
+              </div>
+            </form>
+          )}
+
+          {/* Yeni Ekip / Aracı Formu (Sadece Admin) */}
+          {activeTab === 'user' && (
+            <form onSubmit={handleUserSubmit}>
+              {userError && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--danger-light)',
+                  color: 'var(--danger-text)',
+                  fontSize: '0.84rem',
+                  marginBottom: '14px',
+                  border: '1px solid #fecaca'
+                }}>
+                  <AlertCircle size={16} flexShrink={0} />
+                  <span>{userError}</span>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Hesap Rolü *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setUserForm({ ...userForm, role: 'araci', title: 'İş Ortağı / Aracı' })}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: `2px solid ${userForm.role === 'araci' ? '#10b981' : 'var(--border-color)'}`,
+                      background: userForm.role === 'araci' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-app)',
+                      fontWeight: 600,
+                      fontSize: '0.84rem',
+                      cursor: 'pointer',
+                      color: userForm.role === 'araci' ? '#059669' : 'var(--text-main)'
+                    }}
+                  >
+                    🤝 İş Ortağı (Aracı)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setUserForm({ ...userForm, role: 'admin', title: 'Ajans Yöneticisi' })}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: `2px solid ${userForm.role === 'admin' ? '#8b5cf6' : 'var(--border-color)'}`,
+                      background: userForm.role === 'admin' ? 'rgba(139, 92, 246, 0.1)' : 'var(--bg-app)',
+                      fontWeight: 600,
+                      fontSize: '0.84rem',
+                      cursor: 'pointer',
+                      color: userForm.role === 'admin' ? '#7c3aed' : 'var(--text-main)'
+                    }}
+                  >
+                    👑 Yönetici (Admin)
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Ad Soyad *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Örn: Burak Özdemir"
+                  value={userForm.name}
+                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>E-posta Adresi *</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="burak@avdens.work"
+                  value={userForm.email}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Giriş Şifresi *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Şifre"
+                    value={userForm.password}
+                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Telefon</label>
+                  <input
+                    type="tel"
+                    className="form-input"
+                    placeholder="+90 532 000 00 00"
+                    value={userForm.phone}
+                    onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ margin: '0 -24px -24px -24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={onClose}>İptal</button>
+                <button type="submit" className="btn btn-primary">Yetkiliyi Oluştur</button>
               </div>
             </form>
           )}
