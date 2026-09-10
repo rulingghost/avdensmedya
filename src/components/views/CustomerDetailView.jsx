@@ -29,7 +29,8 @@ import {
   FileCheck,
   Lock,
   RefreshCw,
-  Send
+  Send,
+  Edit2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import AddCredentialModal from '../modals/AddCredentialModal';
@@ -49,6 +50,7 @@ export default function CustomerDetailView() {
     addNote,
     deleteNote,
     deleteCredential,
+    updateCredential,
     deleteFile,
     assignPartnerToCustomer,
     updateCustomerPortalAccess,
@@ -69,6 +71,7 @@ export default function CustomerDetailView() {
 
   // Modallar
   const [isCredModalOpen, setIsCredModalOpen] = useState(false);
+  const [editingCredential, setEditingCredential] = useState(null);
   const [isFileModalOpen, setIsFileModalOpen] = useState(false);
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
 
@@ -119,6 +122,29 @@ export default function CustomerDetailView() {
 
   // Müşterinin portal giriş kullanıcısı (Madde: Müşteri Girişi & Şifre)
   const portalUser = data.users.find(u => u.customerId === customer.id && u.role === 'musteri');
+
+  // Otomatik düzeltme: Yanlışlıkla alan adı olarak girilmiş kullanıcı adı/şifreleri standartlaştır
+  useEffect(() => {
+    customerCredentials.forEach(cred => {
+      const omtekField = cred.fields?.find(f => f.key && f.key.toLowerCase().trim() === 'omteklazer');
+      if (omtekField) {
+        const usernameVal = 'omteklazer';
+        const passVal = omtekField.value || 'Omtek028.';
+        const otherFields = (cred.fields || []).filter(f => f !== omtekField && f.key !== 'Şifre');
+        const fixedFields = [
+          { key: 'Kullanıcı Adı', value: usernameVal, isSecret: false },
+          { key: 'Şifre', value: passVal, isSecret: true },
+          ...otherFields
+        ];
+        updateCredential(cred.id, {
+          serviceType: cred.serviceType,
+          serviceName: cred.serviceName,
+          clientVisible: cred.clientVisible,
+          fields: fixedFields
+        });
+      }
+    });
+  }, [customerCredentials, updateCredential]);
 
   const handleSavePortalAccess = async (e) => {
     e.preventDefault();
@@ -469,113 +495,111 @@ export default function CustomerDetailView() {
             </div>
 
             {/* Portal Kullanıcı Bilgileri / Form */}
-            {portalUser ? (
-              isEditingPortalAccess ? (
-                <form onSubmit={handleSavePortalAccess} style={{ background: '#ffffff', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                    Portal Giriş E-postası ve Şifresini Güncelle
+            {isEditingPortalAccess ? (
+              <form onSubmit={handleSavePortalAccess} style={{ background: '#ffffff', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                  {portalUser ? 'Portal Giriş E-postası ve Şifresini Güncelle' : 'Müşteriye Portal Giriş Hesabı ve Şifre Belirle'}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '14px' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Giriş E-postası</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      value={editPortalEmail}
+                      onChange={(e) => setEditPortalEmail(e.target.value)}
+                      required
+                    />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '14px' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Giriş E-postası</label>
-                      <input
-                        type="email"
-                        className="form-input"
-                        value={editPortalEmail}
-                        onChange={(e) => setEditPortalEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <label style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 0 }}>Yeni Şifre</label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
-                            let p = '';
-                            for (let i = 0; i < 9; i++) p += chars.charAt(Math.floor(Math.random() * chars.length));
-                            setEditPortalPassword(p);
-                          }}
-                          style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}
-                        >
-                          <RefreshCw size={11} />
-                          <span>Rastgele Üret</span>
-                        </button>
-                      </div>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={editPortalPassword}
-                        onChange={(e) => setEditPortalPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIsEditingPortalAccess(false)}>
-                      Vazgeç
-                    </button>
-                    <button type="submit" className="btn btn-primary btn-sm">
-                      Değişiklikleri Kaydet
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
-                  {/* E-posta Kutusu */}
-                  <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                    <div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>
-                        Müşteri Giriş E-postası
-                      </span>
-                      <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)', wordBreak: 'break-all' }}>
-                        {portalUser.email}
-                      </strong>
-                    </div>
-                    <button
-                      onClick={() => handleCopy('p_email', portalUser.email)}
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '6px 10px', fontSize: '0.75rem' }}
-                      title="E-postayı Kopyala"
-                    >
-                      {copiedKey === 'p_email' ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
-                      <span>{copiedKey === 'p_email' ? 'Kopyalandı' : 'Kopyala'}</span>
-                    </button>
-                  </div>
-
-                  {/* Şifre Kutusu */}
-                  <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                    <div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>
-                        Müşteri Giriş Şifresi
-                      </span>
-                      <strong style={{ fontSize: '1rem', fontFamily: isPortalPasswordRevealed ? 'inherit' : 'monospace', color: 'var(--text-main)' }}>
-                        {isPortalPasswordRevealed ? (portalUser.password || '123456') : '••••••••••••'}
-                      </strong>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 0 }}>Portal Şifresi</label>
                       <button
-                        onClick={() => setIsPortalPasswordRevealed(!isPortalPasswordRevealed)}
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '6px 8px' }}
-                        title={isPortalPasswordRevealed ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
+                        type="button"
+                        onClick={() => {
+                          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
+                          let p = '';
+                          for (let i = 0; i < 9; i++) p += chars.charAt(Math.floor(Math.random() * chars.length));
+                          setEditPortalPassword(p);
+                        }}
+                        style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}
                       >
-                        {isPortalPasswordRevealed ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                      <button
-                        onClick={() => handleCopy('p_pass', portalUser.password || '123456')}
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '6px 10px', fontSize: '0.75rem' }}
-                        title="Şifreyi Kopyala"
-                      >
-                        {copiedKey === 'p_pass' ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
-                        <span>{copiedKey === 'p_pass' ? 'Kopyalandı' : 'Kopyala'}</span>
+                        <RefreshCw size={11} />
+                        <span>Rastgele Üret</span>
                       </button>
                     </div>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editPortalPassword}
+                      onChange={(e) => setEditPortalPassword(e.target.value)}
+                      required
+                    />
                   </div>
                 </div>
-              )
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIsEditingPortalAccess(false)}>
+                    Vazgeç
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-sm">
+                    {portalUser ? 'Değişiklikleri Kaydet' : 'Hesabı ve Şifreyi Oluştur'}
+                  </button>
+                </div>
+              </form>
+            ) : portalUser ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
+                {/* E-posta Kutusu */}
+                <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>
+                      Müşteri Giriş E-postası
+                    </span>
+                    <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)', wordBreak: 'break-all' }}>
+                      {portalUser.email}
+                    </strong>
+                  </div>
+                  <button
+                    onClick={() => handleCopy('p_email', portalUser.email)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+                    title="E-postayı Kopyala"
+                  >
+                    {copiedKey === 'p_email' ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
+                    <span>{copiedKey === 'p_email' ? 'Kopyalandı' : 'Kopyala'}</span>
+                  </button>
+                </div>
+
+                {/* Şifre Kutusu */}
+                <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>
+                      Müşteri Giriş Şifresi
+                    </span>
+                    <strong style={{ fontSize: '1rem', fontFamily: isPortalPasswordRevealed ? 'inherit' : 'monospace', color: 'var(--text-main)' }}>
+                      {isPortalPasswordRevealed ? (portalUser.password || '123456') : '••••••••••••'}
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      onClick={() => setIsPortalPasswordRevealed(!isPortalPasswordRevealed)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ padding: '6px 8px' }}
+                      title={isPortalPasswordRevealed ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
+                    >
+                      {isPortalPasswordRevealed ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                    <button
+                      onClick={() => handleCopy('p_pass', portalUser.password || '123456')}
+                      className="btn btn-secondary btn-sm"
+                      style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+                      title="Şifreyi Kopyala"
+                    >
+                      {copiedKey === 'p_pass' ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
+                      <span>{copiedKey === 'p_pass' ? 'Kopyalandı' : 'Kopyala'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-md)', padding: '16px' }}>
                 <div>
@@ -892,7 +916,13 @@ export default function CustomerDetailView() {
             </div>
 
             {currentUser.role !== 'musteri' && (
-              <button className="btn btn-primary btn-sm" onClick={() => setIsCredModalOpen(true)}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  setEditingCredential(null);
+                  setIsCredModalOpen(true);
+                }}
+              >
                 <Plus size={16} />
                 <span>Yeni Hesap Bilgisi Ekle</span>
               </button>
@@ -932,17 +962,29 @@ export default function CustomerDetailView() {
                       )}
 
                       {currentUser.role === 'admin' && (
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Bu hesap bilgisini silmek istediğinize emin misiniz?')) {
-                              deleteCredential(cred.id);
-                            }
-                          }}
-                          style={{ color: 'var(--danger)', padding: '4px' }}
-                          title="Hesap bilgisini sil"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditingCredential(cred);
+                              setIsCredModalOpen(true);
+                            }}
+                            style={{ color: 'var(--primary)', padding: '4px' }}
+                            title="Hesap bilgisini düzenle"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Bu hesap bilgisini silmek istediğinize emin misiniz?')) {
+                                deleteCredential(cred.id);
+                              }
+                            }}
+                            style={{ color: 'var(--danger)', padding: '4px' }}
+                            title="Hesap bilgisini sil"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1431,8 +1473,12 @@ export default function CustomerDetailView() {
       {/* Modallar */}
       <AddCredentialModal
         isOpen={isCredModalOpen}
-        onClose={() => setIsCredModalOpen(false)}
+        onClose={() => {
+          setIsCredModalOpen(false);
+          setEditingCredential(null);
+        }}
         customerId={customer.id}
+        editingCredential={editingCredential}
       />
 
       <AddFileModal
