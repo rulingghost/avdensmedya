@@ -4,22 +4,32 @@ export const INITIAL_USERS = [
   {
     id: 'user-admin',
     name: 'Serdar KEKLİK',
-    email: 'serdar@avdens.work',
-    password: '123',
+    email: 'serdar@a.work',
+    password: '123456',
     role: 'admin', // 'admin' | 'araci' | 'musteri'
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
     title: 'Ajans Yöneticisi',
     phone: '+90 532 900 11 22'
   },
   {
     id: 'user-araci',
-    name: 'Mücahit Atıl',
-    email: 'mucahit@avdens.work',
-    password: '123',
-    role: 'araci',
+    name: 'Ali Mücahit Atıl',
+    email: 'atilglobal42@gmail.com',
+    password: 'At13271327',
+    role: 'admin',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     title: 'İş Ortağı / Aracı',
-    phone: '+90 533 800 33 44'
+    phone: '05357705753'
+  },
+  {
+    id: 'user-admin-alt',
+    name: 'Serdar KEKLİK',
+    email: 'serdar@avdens.work',
+    password: '123',
+    role: 'admin',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    title: 'Ajans Yöneticisi',
+    phone: '+90 532 900 11 22'
   }
 ];
 

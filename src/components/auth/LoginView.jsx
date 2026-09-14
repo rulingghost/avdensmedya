@@ -17,13 +17,21 @@ export default function LoginView() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-    const res = login(email, password);
-    if (!res.success) {
-      setErrorMessage(res.message);
+    setLoading(true);
+    try {
+      const res = await login(email, password);
+      if (!res.success) {
+        setErrorMessage(res.message);
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Giriş yapılırken bir hata oluştu. Lütfen bağlantınızı kontrol ediniz.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,10 +173,25 @@ export default function LoginView() {
           <button
             type="submit"
             className="btn btn-primary"
-            style={{ width: '100%', padding: '12px', fontSize: '0.95rem', fontWeight: 700, marginTop: '6px' }}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '12px',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              marginTop: '6px',
+              opacity: loading ? 0.75 : 1,
+              cursor: loading ? 'wait' : 'pointer'
+            }}
           >
-            <span>Oturum Aç</span>
-            <ArrowRight size={16} />
+            {loading ? (
+              <span>Giriş Yapılıyor...</span>
+            ) : (
+              <>
+                <span>Oturum Aç</span>
+                <ArrowRight size={16} />
+              </>
+            )}
           </button>
         </form>
 

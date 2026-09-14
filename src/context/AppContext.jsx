@@ -214,6 +214,15 @@ export function AppProvider({ children }) {
     loadDataFromDb();
   }, [loadDataFromDb]);
 
+  // Sekmeye geri dönüldüğünde veya pencere odaklandığında verileri diğer cihazlarla senkronize et
+  useEffect(() => {
+    const handleFocus = () => {
+      loadDataFromDb();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadDataFromDb]);
+
   // Veri her değiştiğinde yerel önbelleği güncelle (anlık yenilemelerde avatar/veri kaybını önleme)
   useEffect(() => {
     try {
@@ -242,13 +251,36 @@ export function AppProvider({ children }) {
   // -------------------------------------------------------------
   // OTURUM YÖNETİMİ
   // -------------------------------------------------------------
-  const login = (email, password) => {
+  const login = async (email, password) => {
     if (!email || !password) {
       return { success: false, message: 'Lütfen e-posta adresinizi ve şifrenizi giriniz.' };
     }
 
     const trimmedEmail = String(email).toLowerCase().trim();
-    const user = data.users.find(u => u.email.toLowerCase().trim() === trimmedEmail);
+    let user = data.users?.find(u => u.email && u.email.toLowerCase().trim() === trimmedEmail);
+
+    // Kullanıcı mevcut bellekte bulunamadıysa (örneğin ilk açılışta ağ sorgusu henüz bitmediyse
+    // veya kullanıcı başka bir cihazdan yeni eklendiyse) doğrudan veritabanından en güncel kullanıcıları çek
+    if (!user) {
+      try {
+        const result = await fetchNeonData();
+        if (result && result.success && result.data && Array.isArray(result.data.users)) {
+          const mergedData = {
+            ...result.data,
+            contentPosts: result.data.contentPosts || []
+          };
+          setData(mergedData);
+          setDbStatus('connected');
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedData));
+          } catch (e) {}
+
+          user = result.data.users.find(u => u.email && u.email.toLowerCase().trim() === trimmedEmail);
+        }
+      } catch (err) {
+        console.error('Giriş sırasında veritabanı sorgusu başarısız oldu:', err);
+      }
+    }
 
     if (!user) {
       return { success: false, message: 'Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı.' };

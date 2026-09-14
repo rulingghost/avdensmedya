@@ -41,6 +41,28 @@ export default async function handler(req, res) {
         });
       }
 
+      // content_posts tablosunun varlığını kontrol et / oluştur
+      try {
+        await sql`
+          CREATE TABLE IF NOT EXISTS content_posts (
+            id TEXT PRIMARY KEY,
+            "customerId" TEXT NOT NULL,
+            "customerName" TEXT,
+            title TEXT NOT NULL,
+            caption TEXT,
+            "mediaUrl" TEXT,
+            "mediaType" TEXT DEFAULT 'image',
+            platform TEXT DEFAULT 'instagram',
+            "scheduledDate" TIMESTAMPTZ,
+            status TEXT DEFAULT 'onay_bekliyor',
+            "clientFeedback" TEXT,
+            "createdAt" TIMESTAMPTZ DEFAULT NOW()
+          );
+        `;
+      } catch (tableErr) {
+        console.warn('content_posts tablosu oluşturulamadı/zaten var:', tableErr.message);
+      }
+
       const [
         users,
         customers,
@@ -56,35 +78,19 @@ export default async function handler(req, res) {
         onboardingRequests,
         contentPosts
       ] = await Promise.all([
-        sql`SELECT * FROM users`,
-        sql`SELECT * FROM customers ORDER BY "createdAt" DESC`,
-        sql`SELECT * FROM categories`,
-        sql`SELECT * FROM tasks ORDER BY "createdAt" DESC`,
-        sql`SELECT * FROM credentials ORDER BY "createdAt" DESC`,
-        sql`SELECT * FROM notes ORDER BY "createdAt" DESC`,
-        sql`SELECT * FROM files ORDER BY "uploadedAt" DESC`,
-        sql`SELECT * FROM comments ORDER BY "createdAt" DESC`,
-        sql`SELECT * FROM activities ORDER BY "createdAt" DESC`,
-        sql`SELECT * FROM notifications ORDER BY "createdAt" DESC`,
-        sql`SELECT * FROM templates`,
-        sql`SELECT * FROM onboarding_requests ORDER BY "createdAt" DESC`,
-        sql`
-          CREATE TABLE IF NOT EXISTS content_posts (
-            id TEXT PRIMARY KEY,
-            "customerId" TEXT NOT NULL,
-            "customerName" TEXT,
-            title TEXT NOT NULL,
-            caption TEXT,
-            "mediaUrl" TEXT,
-            "mediaType" TEXT DEFAULT 'image',
-            platform TEXT DEFAULT 'instagram',
-            "scheduledDate" TIMESTAMPTZ,
-            status TEXT DEFAULT 'onay_bekliyor',
-            "clientFeedback" TEXT,
-            "createdAt" TIMESTAMPTZ DEFAULT NOW()
-          );
-          SELECT * FROM content_posts ORDER BY "scheduledDate" ASC, "createdAt" DESC;
-        `
+        sql`SELECT * FROM users`.catch(e => { console.error('users fetch error:', e.message); return []; }),
+        sql`SELECT * FROM customers ORDER BY "createdAt" DESC`.catch(e => { console.error('customers fetch error:', e.message); return []; }),
+        sql`SELECT * FROM categories`.catch(e => { console.error('categories fetch error:', e.message); return []; }),
+        sql`SELECT * FROM tasks ORDER BY "createdAt" DESC`.catch(e => { console.error('tasks fetch error:', e.message); return []; }),
+        sql`SELECT * FROM credentials ORDER BY "createdAt" DESC`.catch(e => { console.error('credentials fetch error:', e.message); return []; }),
+        sql`SELECT * FROM notes ORDER BY "createdAt" DESC`.catch(e => { console.error('notes fetch error:', e.message); return []; }),
+        sql`SELECT * FROM files ORDER BY "uploadedAt" DESC`.catch(e => { console.error('files fetch error:', e.message); return []; }),
+        sql`SELECT * FROM comments ORDER BY "createdAt" DESC`.catch(e => { console.error('comments fetch error:', e.message); return []; }),
+        sql`SELECT * FROM activities ORDER BY "createdAt" DESC`.catch(e => { console.error('activities fetch error:', e.message); return []; }),
+        sql`SELECT * FROM notifications ORDER BY "createdAt" DESC`.catch(e => { console.error('notifications fetch error:', e.message); return []; }),
+        sql`SELECT * FROM templates`.catch(e => { console.error('templates fetch error:', e.message); return []; }),
+        sql`SELECT * FROM onboarding_requests ORDER BY "createdAt" DESC`.catch(e => { console.error('onboarding_requests fetch error:', e.message); return []; }),
+        sql`SELECT * FROM content_posts ORDER BY "scheduledDate" ASC, "createdAt" DESC`.catch(e => { console.error('content_posts fetch error:', e.message); return []; })
       ]);
 
       return res.status(200).json({
@@ -359,18 +365,38 @@ export default async function handler(req, res) {
 
         case 'insertUser': {
           const u = payload;
-          await sql`
-            INSERT INTO users (id, name, email, password, role, avatar, title, phone, company, "customerId")
-            VALUES (${u.id}, ${u.name}, ${u.email}, ${u.password}, ${u.role || 'araci'}, ${u.avatar || null}, ${u.title || null}, ${u.phone || null}, ${u.company || null}, ${u.customerId || null})
-            ON CONFLICT (id) DO UPDATE SET
-              name = EXCLUDED.name,
-              email = EXCLUDED.email,
-              password = EXCLUDED.password,
-              role = EXCLUDED.role,
-              avatar = EXCLUDED.avatar,
-              title = EXCLUDED.title,
-              phone = EXCLUDED.phone;
-          `;
+          const trimmedEmail = String(u.email || '').toLowerCase().trim();
+          const existing = await sql`SELECT id FROM users WHERE LOWER(TRIM(email)) = ${trimmedEmail}`;
+          if (existing && existing.length > 0) {
+            const existingId = existing[0].id;
+            await sql`
+              UPDATE users SET
+                name = ${u.name},
+                password = ${u.password},
+                role = ${u.role || 'musteri'},
+                avatar = COALESCE(${u.avatar || null}, avatar),
+                title = COALESCE(${u.title || null}, title),
+                phone = COALESCE(${u.phone || null}, phone),
+                company = COALESCE(${u.company || null}, company),
+                "customerId" = COALESCE(${u.customerId || null}, "customerId")
+              WHERE id = ${existingId};
+            `;
+          } else {
+            await sql`
+              INSERT INTO users (id, name, email, password, role, avatar, title, phone, company, "customerId")
+              VALUES (${u.id}, ${u.name}, ${trimmedEmail}, ${u.password}, ${u.role || 'araci'}, ${u.avatar || null}, ${u.title || null}, ${u.phone || null}, ${u.company || null}, ${u.customerId || null})
+              ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                email = EXCLUDED.email,
+                password = EXCLUDED.password,
+                role = EXCLUDED.role,
+                avatar = EXCLUDED.avatar,
+                title = EXCLUDED.title,
+                phone = EXCLUDED.phone,
+                company = EXCLUDED.company,
+                "customerId" = EXCLUDED."customerId";
+            `;
+          }
           return res.status(200).json({ success: true });
         }
 
